@@ -1,0 +1,14 @@
+{
+  "name": "cell-geolocation",
+  "description": "Self hosted cell tower gelocation server using OpenCellId, Mozilla Location Services MLS and Google Geolocation",
+  "author": "Tristan Ramseyer <t@ramseyer.email>",
+  "license": "WTFPL",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tramseyer/cell-geolocation"
+  },
+  "dependencies": {
+    "sqlite3": "3.x",
+    "google-geolocation": ""
+  }
+}

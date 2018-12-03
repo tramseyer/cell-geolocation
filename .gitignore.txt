@@ -1,0 +1,4 @@
+node_modules/
+*.csv
+*.csv.gz
+*.sqlite
