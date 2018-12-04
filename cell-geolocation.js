@@ -90,30 +90,41 @@ http.createServer(function(req, res) {
                 };
                 gga(cell, (err, data) => {
                   if (err) {
-                    // -5- use default location if a match is nowhere to be found
-                    ggaDb.run('INSERT INTO cells (mcc, mnc, lac, cellid, lat, lon, range) VALUES(?,?,?,?,?,?,?)', {
-                      1: url.query.mcc,
-                      2: url.query.mnc,
-                      3: url.query.lac,
-                      4: url.query.cellid,
-                      5: defaultLatitude,
-                      6: defaultLongitude,
-                      7: defaultRange
-                    }, function(err, result) {
-                      if (err) {
-                        console.error('Error inserting default location into Google Geolocation API cache database');
-                        res.writeHead(500);
-                        res.end(JSON.stringify(err));
+                    // If quotas are exceeded, the statusCode should be 403
+                    if (err.statusCode == 403) {
+                        console.log(util.format('Replying with default location to %s due to 403: %s, %s, %s, %s',
+                                    req.connection.remoteAddress,
+                                    url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid));
+                        res.writeHead(404, { 'Content-Type': 'application/json' });
+                        res.end(util.format('{"lat":%d,"lon":%d,"range":%d}',
+                                defaultLatitude, defaultLongitude, defaultRange));
                         return;
-                      }
-                      console.log(util.format('Replying with default location to %s: %s, %s, %s, %s',
-                                  req.connection.remoteAddress,
-                                  url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid));
-                      res.writeHead(404, { 'Content-Type': 'application/json' });
-                      res.end(util.format('{"lat":%d,"lon":%d,"range":%d}',
-                              defaultLatitude, defaultLongitude, defaultRange));
-                      return;
-                    });
+                    } else {
+                      // -5- use default location if a match is nowhere to be found
+                      ggaDb.run('INSERT INTO cells (mcc, mnc, lac, cellid, lat, lon, range) VALUES(?,?,?,?,?,?,?)', {
+                        1: url.query.mcc,
+                        2: url.query.mnc,
+                        3: url.query.lac,
+                        4: url.query.cellid,
+                        5: defaultLatitude,
+                        6: defaultLongitude,
+                        7: defaultRange
+                      }, function(err, result) {
+                        if (err) {
+                          console.error('Error inserting default location into Google Geolocation API cache database');
+                          res.writeHead(500);
+                          res.end(JSON.stringify(err));
+                          return;
+                        }
+                        console.log(util.format('Replying with default location to %s due to 404: %s, %s, %s, %s',
+                                    req.connection.remoteAddress,
+                                    url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid));
+                        res.writeHead(404, { 'Content-Type': 'application/json' });
+                        res.end(util.format('{"lat":%d,"lon":%d,"range":%d}',
+                                defaultLatitude, defaultLongitude, defaultRange));
+                        return;
+                      });
+                    }
                   } else {
                     ggaDb.run('INSERT INTO cells (mcc, mnc, lac, cellid, lat, lon, range) VALUES(?,?,?,?,?,?,?)', {
                       1: url.query.mcc,

@@ -11,7 +11,8 @@ Underneath the hood, the following data sources are used in the following order:
 
 You'll want to use this if you want to have the most complete, free, self hosted cell tower geolocation server.
 As of July 16, 2018 the Google Geolocation API allows up to 40000 Geolocation API request per month for free.
-It is recommended to set the [Google Geolocation API Quotas](https://console.cloud.google.com/google/maps-apis/apis/geolocation.googleapis.com/quotas) to ensure cost control.
+It is recommended to set the Quotas [here](https://console.cloud.google.com/google/maps-apis/apis/geolocation.googleapis.com/quotas)
+or [here](https://console.cloud.google.com/iam-admin/quotas) to ensure cost control.
 Whereas a limit of 1290 Geolocation API request per day are the maximum to not exceed 200$ (monthy free credit).
 
 ## Installation (database creation)
