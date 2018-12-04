@@ -106,12 +106,12 @@ http.createServer(function(req, res) {
                         res.end(JSON.stringify(err));
                         return;
                       }
-                      console.log(util.format('Replying with default location to %s: %s %s %s %s',
+                      console.log(util.format('Replying with default location to %s: %s, %s, %s, %s',
                                   req.connection.remoteAddress,
                                   url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid));
                       res.writeHead(404, { 'Content-Type': 'application/json' });
-                      res.end(util.format('{"lat":%d,"lon":%d,"range":%d}'),
-                              defaultLatitude, defaultLongitude, defaultRange);
+                      res.end(util.format('{"lat":%d,"lon":%d,"range":%d}',
+                              defaultLatitude, defaultLongitude, defaultRange));
                       return;
                     });
                   } else {

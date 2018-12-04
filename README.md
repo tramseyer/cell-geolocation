@@ -59,7 +59,7 @@ The output is a JSON object that has lat, lon and range.
 Remove default locations in the Google Geolocation API cache database:
 
     sqlite3 gga_cells.sqlite
-    DELETE FROM cells WHERE mcc=4294967295;
+    DELETE FROM cells WHERE range=4294967295;
     VACUUM;
 
 ## Resources
