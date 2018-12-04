@@ -7,7 +7,7 @@ Underneath the hood, the following data sources are used in the following order:
 2. [Mozilla Location Service: offline database](https://location.services.mozilla.com/downloads)
 3. Google Geolocation API: self created cache database
 4. [Google Geolocation API: online service](https://developers.google.com/maps/documentation/geolocation/intro)
-5. Default location
+5. Default location (Latitude = 46.910542, Longitude = 7.359761 and Range = 4294967295)
 
 You'll want to use this if you want to have the most complete, free, self hosted cell tower geolocation server.
 As of July 16, 2018 the Google Geolocation API allows up to 40000 Geolocation API request per month for free.
@@ -45,14 +45,22 @@ Use environment variables PORT and IP for different port/host. F.e.:
 
     PORT=1337 GOOGLE_GEOLOCATION_API_KEY=<YOURS> node cell-goelocation.js
 
-## Query
+## Queries
 
     curl -s 'http://localhost:5265/?mcc=228&mnc=1&lac=505&cellid=10545'
     curl -s 'http://localhost:5265/?mcc=222&mnc=10&lac=16085&cellid=26855411'
     curl -s 'http://localhost:5265/?mcc=1&mnc=2&lac=3&cellid=4'
     curl -s 'http://localhost:5265/?mcc=0&mnc=0&lac=0&cellid=0'
 
-The outout is a JSON object that has lat, lon, range and source.
+The output is a JSON object that has lat, lon and range.
+
+## Maintenance
+
+Remove default locations in the Google Geolocation API cache database:
+
+    sqlite3 gga_cells.sqlite
+    DELETE FROM cells WHERE mcc=4294967295;
+    VACUUM;
 
 ## Resources
 
