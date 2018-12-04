@@ -90,16 +90,7 @@ http.createServer(function(req, res) {
                 };
                 gga(cell, (err, data) => {
                   if (err) {
-                    // If quotas are exceeded, the statusCode should be 403
-                    if (err.statusCode == 403) {
-                        console.log(util.format('Replying with default location to %s due to 403: %s, %s, %s, %s',
-                                    req.connection.remoteAddress,
-                                    url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid));
-                        res.writeHead(404, { 'Content-Type': 'application/json' });
-                        res.end(util.format('{"lat":%d,"lon":%d,"range":%d}',
-                                defaultLatitude, defaultLongitude, defaultRange));
-                        return;
-                    } else {
+                    if (err.statusCode == 404) {
                       // -5- use default location if a match is nowhere to be found
                       ggaDb.run('INSERT INTO cells (mcc, mnc, lac, cellid, lat, lon, range) VALUES(?,?,?,?,?,?,?)', {
                         1: url.query.mcc,
@@ -124,6 +115,15 @@ http.createServer(function(req, res) {
                                 defaultLatitude, defaultLongitude, defaultRange));
                         return;
                       });
+                    } else {
+                      // Remark: If quotas are exceeded, the statusCode should be 403
+                      console.log(util.format('Replying with default location to %s due to %d: %s, %s, %s, %s',
+                                  req.connection.remoteAddress, err.statusCode,
+                                  url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid));
+                      res.writeHead(404, { 'Content-Type': 'application/json' });
+                      res.end(util.format('{"lat":%d,"lon":%d,"range":%d}',
+                              defaultLatitude, defaultLongitude, defaultRange));
+                      return;
                     }
                   } else {
                     ggaDb.run('INSERT INTO cells (mcc, mnc, lac, cellid, lat, lon, range) VALUES(?,?,?,?,?,?,?)', {
