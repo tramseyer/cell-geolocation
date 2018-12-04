@@ -16,7 +16,7 @@ if (typeof process.env.GOOGLE_GEOLOCATION_API_KEY != 'undefined') {
   console.warn('No Google Geolocation API key supplied via: GOOGLE_GEOLOCATION_API_KEY');
 }
 
-const defaultLocation = '{"lat":46.910542,"lon":7.359761,"range":4294967295,"source":"none"}'
+const defaultLocation = '{"lat":46.910542,"lon":7.359761,"range":4294967295}'
 
 http.createServer(function(req, res) {
   var url = Url.parse(req.url, true);
@@ -89,12 +89,13 @@ http.createServer(function(req, res) {
                 gga(cell, (err, data) => {
                   if (err) {
                     // -5- use default location if a match is nowhere to be found
-                    console.log('Replying with default location because cell not found', url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid);
+                    console.log(util.format('Replying with default location to %s: %s %s %s %s',
+                                req.connection.remoteAddress,
+                                url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid));
                     res.writeHead(404, { 'Content-Type': 'application/json' });
                     res.end(defaultLocation);
                     return;
                   }
-                  console.log(data);
                   ggaDb.run('INSERT INTO cells (mcc, mnc, lac, cellid, lat, lon, range) VALUES(?,?,?,?,?,?,?)', {
                     1: url.query.mcc,
                     2: url.query.mnc,
@@ -110,30 +111,27 @@ http.createServer(function(req, res) {
                       res.end(JSON.stringify(err));
                       return;
                     }
-                    console.log(util.format('Queried Google Geolocation API: %s, %s, %s, %s -> %s, %s, %s',
+                    console.log(util.format('Queried Google Geolocation API for %s: %s, %s, %s, %s -> %s, %s, %s',
+                                req.connection.remoteAddress,
                                 url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid,
                                 data.location.lat, data.location.lng, data.accuracy));
                     res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(util.format('{"lat":%d,"lon":%d,"range":%d,source:"%s"}',
-                                        data.location.lat, data.location.lng, data.accuracy, 'Google'));
+                    res.end(util.format('{"lat":%d,"lon":%d,"range":%d}', data.location.lat, data.location.lng, data.accuracy));
                     return;
                   });
                 });
               } else {
                 res.writeHead(200, { 'Content-Type': 'application/json' });
-                row.source = 'Google';
                 res.end(JSON.stringify(row));
               }
             });
           } else {
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            row.source = 'Mozilla';
             res.end(JSON.stringify(row));
           }
         });
       } else {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        row.source = 'OpenCellId';
         res.end(JSON.stringify(row));
       }
     });
