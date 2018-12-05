@@ -5,15 +5,11 @@ A self hosted cell tower geolocation server inspired by [Jan Jongboom](https://g
 Underneath the hood, the following data sources are used in the following order:
 1. [OpenCellId: offline database](https://www.opencellid.org/downloads.php)
 2. [Mozilla Location Service: offline database](https://location.services.mozilla.com/downloads)
-3. Google Geolocation API: self created cache database
-4. [Google Geolocation API: online service](https://developers.google.com/maps/documentation/geolocation/intro)
+3. Google GLM MMAP: self created cache database
+4. Google GLM MMAP: online service
 5. Default location (Latitude = 46.910542, Longitude = 7.359761 and Range = 4294967295)
 
 You'll want to use this if you want to have the most complete, free and self hosted cell tower geolocation server.
-As of July 16, 2018 the Google Geolocation API allows up to 40000 Geolocation API request per month for free.
-It is recommended to set the Quotas [here](https://console.cloud.google.com/google/maps-apis/apis/geolocation.googleapis.com/quotas)
-or [here](https://console.cloud.google.com/iam-admin/quotas) to ensure cost control.
-Whereas a limit of 1290 Geolocation API requests per day is the maximum to not exceed the monthly free credit of 200$.
 
 Remark: The OpenBmap / Radiocells.org database is not used, because it is considered tiny compared to the OpenCellId and Mozilla Location Service databases.
 
@@ -33,9 +29,9 @@ Remark: The OpenBmap / Radiocells.org database is not used, because it is consid
     cat schema.sql | sqlite3 mls_cells.sqlite
     cat mls_import.sql | sqlite3 mls_cells.sqlite
 
-### Google Geolocation API cache database
+### Google GLM MMAP cache database
 
-    cat gga_schema.sql | sqlite3 gga_cells.sqlite
+    cat glm_schema.sql | sqlite3 glm_cells.sqlite
 
 ## Running
 
@@ -60,12 +56,12 @@ Use environment variables PORT and IP for different port/host. F.e.:
     curl -s 'http://localhost:5265/?mcc=222&mnc=10&lac=16085&cellid=26855411'
     {"lat":44.4104554,"lon":8.8969816,"range":275}
 
-4. Query which can be answered by using the Google Geolocation API online service:
+4. Query which can be answered by using the Google GLM MMAP online service:
 
     curl -s 'http://localhost:5265/?mcc=1&mnc=2&lac=3&cellid=4'
     {"lat":44.5379461,"lon":18.6698686,"range":2097}
 
-3. Query which can now be answered by using the Google Geolocation API cache database:
+3. Query which can now be answered by using the Google GLM MMAP cache database:
 
     curl -s 'http://localhost:5265/?mcc=1&mnc=2&lac=3&cellid=4'
     {"lat":44.5379461,"lon":18.6698686,"range":2097}
@@ -79,7 +75,7 @@ The output is always a JSON object that has lat, lon and range.
 
 ## Maintenance
 
-Remove default locations in the Google Geolocation API cache database (useful when assuming that the corresponding cells are now known to the Google Geolocation API):
+Remove default locations in the Google GLM MMAP cache database (useful when assuming that the corresponding cells are now known to the Google GLM MMAP):
 
     sqlite3 gga_cells.sqlite
     DELETE FROM cells WHERE range=4294967295;
