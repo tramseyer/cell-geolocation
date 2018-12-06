@@ -21,6 +21,7 @@ if (typeof OPENCELLID_API_KEY != 'undefined') {
 }
 
 var numValidRequests = 0;
+var numUnknownCells = 0;
 
 http.createServer(function(req, res) {
   const url = Url.parse(req.url, true);
@@ -40,7 +41,6 @@ http.createServer(function(req, res) {
     }
 
     numValidRequests++;
-
     // -1- query OpenCellId database
     ociDb.get('SELECT lat, lon, range FROM cells WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', {
       1: url.query.mcc,
@@ -103,8 +103,8 @@ http.createServer(function(req, res) {
                       res.end(JSON.stringify(err));
                       return;
                     }
-                    console.log(util.format('Req#%d: Queried Google GLM MMAP for %s: %s, %s, %s, %s -> %s, %s, %s',
-                                numValidRequests, req.connection.remoteAddress,
+                    console.log(util.format('Req#%d/%d: Queried Google GLM MMAP for %s: %s, %s, %s, %s -> %s, %s, %s',
+                                numValidRequests, numUnknownCells, req.connection.remoteAddress,
                                 url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid,
                                 coords.lat, coords.lon, coords.range));
                     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -145,8 +145,8 @@ http.createServer(function(req, res) {
                               res.end(JSON.stringify(err));
                               return;
                             }
-                            console.log(util.format('Req#%d: Queried OpenCellId for %s: %s, %s, %s, %s -> %s, %s, %s',
-                                        numValidRequests, req.connection.remoteAddress,
+                            console.log(util.format('Req#%d/%d: Queried OpenCellId for %s: %s, %s, %s, %s -> %s, %s, %s',
+                                        numValidRequests, numUnknownCells, req.connection.remoteAddress,
                                         url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid,
                                         coords.lat, coords.lon, coords.range));
                             res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -155,6 +155,7 @@ http.createServer(function(req, res) {
                           });
                         }
                         else if (coords.statusCode == 404) { // cell not found
+                          numUnknownCells++;
                           // -7- use default location if a match is nowhere to be found
                           uwlDb.run('INSERT INTO cells (mcc, mnc, lac, cellid, lat, lon, range) VALUES(?,?,?,?,?,?,?)', {
                             1: url.query.mcc,
@@ -171,8 +172,8 @@ http.createServer(function(req, res) {
                               res.end(JSON.stringify(err));
                               return;
                             }
-                            console.log(util.format('Req#%d: Replying with default location to %s due to %d: %s, %s, %s, %s',
-                                        numValidRequests, req.connection.remoteAddress, coords.statusCode,
+                            console.log(util.format('Req#%d/%d: Replying with default location to %s due to %d: %s, %s, %s, %s',
+                                        numValidRequests, numUnknownCells, req.connection.remoteAddress, coords.statusCode,
                                         url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid));
                             res.writeHead(404, { 'Content-Type': 'application/json' });
                             res.end(util.format('{"lat":%d,"lon":%d,"range":%d}',
@@ -180,8 +181,8 @@ http.createServer(function(req, res) {
                             return;
                           });
                         } else if (coords.statusCode == 429) { // daily limit of UnwiredLabs requests exceeded
-                            console.log(util.format('Req#%d: Replying with default location to %s due to %d: %s, %s, %s, %s',
-                                        numValidRequests, req.connection.remoteAddress, coords.statusCode,
+                            console.log(util.format('Req#%d/%d: Replying with default location to %s due to %d: %s, %s, %s, %s',
+                                        numValidRequests, numUnknownCells, req.connection.remoteAddress, coords.statusCode,
                                         url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid));
                             res.writeHead(404, { 'Content-Type': 'application/json' });
                             res.end(util.format('{"lat":%d,"lon":%d,"range":%d}',
