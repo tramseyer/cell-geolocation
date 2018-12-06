@@ -7,6 +7,18 @@ let CONNECTION_TIMEOUT = 3000;
 const E_NOTFOUND = 'BTS not found';
 const E_REQERROR = 'Request error';
 
+// reg expression to fetch coordinates, range and code from OpenCellId response
+const RE_FETCH_OPENCELLID_LAT  = /\slat="([+\-\d\.]+)"/i;
+const RE_FETCH_OPENCELLID_LON  = /\slon="([+\-\d\.]+)"/i;
+const RE_FETCH_OPENCELLID_RANGE  = /\srange="([+\-\d\.]+)"/i;
+const RE_FETCH_OPENCELLID_CODE = /\scode="([+\-\d\.]+)"/i;
+
+// error answer in OpenCellId response
+const RE_OPENCELLID_ERROR = /err\s+info="[^"]+"\s+code="/i;
+
+// quota exceeded answer for UnwiredLabs fallback
+const RE_UNWIREDLABS_QUOTA = /free fallback requests/i
+
 /**
  * Perform request to Location Service.
  * Taken from https://github.com/kolonist/bscoords and kept unchaged.
@@ -57,18 +69,18 @@ const request = (options, request_body, response_encoding, response_parser) => {
     });
 };
 
-/**
- * Get geographical coordinates from Google GLM MMAP (unofficial API).
- * Taken from https://github.com/kolonist/bscoords and modified to parse range.
- *
- * @param  {Number}  mcc Mobile Country Code
- * @param  {Number}  mnc Mobile Network Code
- * @param  {Number}  lac Location area code
- * @param  {Number}  cid Cell Identity
- * @return {Promise} Object containing lat, lon and range. If cell can not be resolved null.
- */
 module.exports = {
-    get: function (mcc, mnc, lac, cid) {
+    /**
+     * Get geographical coordinates from Google GLM MMAP (unofficial API).
+     * Taken from https://github.com/kolonist/bscoords and modified to parse range.
+     *
+     * @param  {Number}  mcc Mobile Country Code
+     * @param  {Number}  mnc Mobile Network Code
+     * @param  {Number}  lac Location area code
+     * @param  {Number}  cid Cell Identity
+     * @return {Promise} Object containing lat, lon and range. If cell can not be resolved null.
+     */
+    glm: function (mcc, mnc, lac, cid) {
         const options = {
             hostname: 'www.google.com',
             method  : 'POST',
@@ -121,6 +133,65 @@ module.exports = {
                 }
 
                 return coords;
+            } catch(err) {
+                return null;
+            }
+        };
+
+        return request(options, request_body, response_encoding, response_parser);
+    },
+
+    /**
+     * Get geographical coordinates from OpenCellId.
+     * Taken from https://github.com/kolonist/bscoords and modified to parse range and code.
+     *
+     * @param  {Number}  mcc Mobile Country Code
+     * @param  {Number}  mnc Mobile Network Code
+     * @param  {Number}  lac Location area code
+     * @param  {Number}  cid Cell Identity
+     * @param  {String}  key OpenCellId API key
+     * @return {Promise} Object containing lat, lon, range and status code. If there is a severe error null.
+     */
+    oci: function (mcc, mnc, lac, cid, key) {
+        const options = {
+            hostname: 'opencellid.org',
+            method  : 'GET',
+            path    : `/cell/get?key=${key}&mnc=${mnc}&mcc=${mcc}&lac=${lac}&cellid=${cid}`
+        };
+
+        const request_body = null;
+        const response_encoding = 'utf8';
+
+        const response_parser = buf => {
+            try {
+                if (RE_UNWIREDLABS_QUOTA.test(buf)) {
+                    const coords = {
+                        lat: 0,
+                        lon: 0,
+                        range: 0,
+                        statusCode: 429
+                    };
+
+                    return coords;
+                } else if (RE_OPENCELLID_ERROR.test(buf)) {
+                    const coords = {
+                        lat: 0,
+                        lon: 0,
+                        range: 0,
+                        statusCode: 404
+                    };
+
+                    return coords;
+                } else {
+                    const coords = {
+                        lat: Number(RE_FETCH_OPENCELLID_LAT.exec(buf)[1]),
+                        lon: Number(RE_FETCH_OPENCELLID_LON.exec(buf)[1]),
+                        range: Number(RE_FETCH_OPENCELLID_RANGE.exec(buf)[1]),
+                        statusCode: 200
+                    };
+
+                    return coords;
+                }
             } catch(err) {
                 return null;
             }

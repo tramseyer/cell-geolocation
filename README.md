@@ -2,12 +2,14 @@
 
 A self hosted cell tower geolocation server inspired by [Jan Jongboom](https://github.com/janjongboom/opencellid).
 
-Underneath the hood, the following data sources are used in the following order:
+Underneath the hood, the following data sources are used in descending order:
 1. [OpenCellId: offline database](https://www.opencellid.org/downloads.php)
 2. [Mozilla Location Service: offline database](https://location.services.mozilla.com/downloads)
 3. Google GLM MMAP: self created cache database
-4. Google GLM MMAP: online service
-5. Default location (Latitude = 46.910542, Longitude = 7.359761 and Range = 4294967295)
+4. [Google GLM MMAP: online service](https://github.com/kolonist/bscoords)
+5. OpenCellId (effectively a fallback to UnwiredLabs): self created cache database
+6. [OpenCellId (effectively a fallback to UnwiredLabs): online service](http://wiki.opencellid.org/wiki/API)
+7. Default location (Latitude = 46.909009, Longitude = 7.360584 and Range = 4294967295)
 
 You'll want to use this if you want to have the most complete, free and self hosted cell tower geolocation server.
 
@@ -31,45 +33,64 @@ Remark: The OpenBmap / Radiocells.org database is not used, because it is consid
 
 ### Google GLM MMAP cache database
 
-    cat glm_schema.sql | sqlite3 glm_cells.sqlite
+    cat cache_schema.sql | sqlite3 glm_cells.sqlite
+
+### OpenCellId (effectively a fallback to UnwiredLabs) cache database
+
+    cat cache_schema.sql | sqlite3 uwl_cells.sqlite
 
 ## Running
 
 Start the server:
 
     npm install
-    GOOGLE_GEOLOCATION_API_KEY=<YOURS> node cell-geolocation.js
+    OPENCELLID_API_KEY=<YOURS> node cell-geolocation.js
 
 Use environment variables PORT and IP for different port/host. F.e.:
 
-    PORT=1337 GOOGLE_GEOLOCATION_API_KEY=<YOURS> node cell-geolocation.js
+    PORT=1337 OPENCELLID_API_KEY=<YOURS> node cell-geolocation.js
 
-## Queries and Responses (as of 4. Dec. 2018)
+## Queries and Responses (as of 6. Dec. 2018)
 
-1. Query which can be answered by using the OpenCellId database:
+Query which can be answered by using the OpenCellId database (1):
 
     curl -s 'http://localhost:5265/?mcc=228&mnc=1&lac=505&cellid=10545'
     {"lat":47.492113,"lon":8.466422,"range":15744}
 
-2. Query which can be answered by using the Mozilla Location Service database:
+Query which can be answered by using the Mozilla Location Service database (2):
 
     curl -s 'http://localhost:5265/?mcc=222&mnc=10&lac=16085&cellid=26855411'
     {"lat":44.4104554,"lon":8.8969816,"range":275}
 
-4. Query which can be answered by using the Google GLM MMAP online service:
+Query which can be answered by using the Google GLM MMAP online service (4):
 
-    curl -s 'http://localhost:5265/?mcc=1&mnc=2&lac=3&cellid=4'
-    {"lat":44.5379461,"lon":18.6698686,"range":2097}
+    curl -s 'http://localhost:5265/?mcc=206&mnc=1&lac=3001&cellid=66836061'
+    {"lat":51.088892,"lon":4.456987,"range":1492}
 
-3. Query which can now be answered by using the Google GLM MMAP cache database:
+Query which can now be answered by using the Google GLM MMAP cache database (3):
 
-    curl -s 'http://localhost:5265/?mcc=1&mnc=2&lac=3&cellid=4'
-    {"lat":44.5379461,"lon":18.6698686,"range":2097}
+    curl -s 'http://localhost:5265/?mcc=206&mnc=1&lac=3001&cellid=66836061'
+    {"lat":51.088892,"lon":4.456987,"range":1492}
 
-5. Query which can only be answered by using the default location:
+Query which can be answered by using the OpenCellId online service (6):
 
-    curl -s 'http://localhost:5265/?mcc=0&mnc=0&lac=0&cellid=0'
-    {"lat":46.910542,"lon":7.359761,"range":4294967295}
+    curl -s 'http://localhost:5265/?mcc=204&mnc=4&lac=217&cellid=48189702'
+    {"lat":52.326586,"lon":5.093599,"range":4545}
+
+Query which can now be answered by using the OpenCellId cache database (5):
+
+    curl -s 'http://localhost:5265/?mcc=204&mnc=4&lac=217&cellid=48189702'
+    {"lat":52.326586,"lon":5.093599,"range":4545}
+
+Query with existing cell tower which can only be answered by using the default location (7):
+
+    curl -s 'http://localhost:5265/?mcc=206&mnc=20&lac=252&cellid=333154'
+    {"lat":46.909009,"lon":7.360584,"range":4294967295}
+
+Query with non-existing cell tower which can only be answered by using the default location (8):
+
+    curl -s 'http://localhost:5265/?mcc=3100&mnc=41&lac=42971&cellid=9906077'
+    {"lat":46.909009,"lon":7.360584,"range":4294967295}
 
 The output is always a JSON object that has lat, lon and range.
 
@@ -77,7 +98,13 @@ The output is always a JSON object that has lat, lon and range.
 
 Remove default locations in the Google GLM MMAP cache database (useful when assuming that the corresponding cells are now known to the Google GLM MMAP):
 
-    sqlite3 gga_cells.sqlite
+    sqlite3 glm_cells.sqlite
+    DELETE FROM cells WHERE range=4294967295;
+    VACUUM;
+
+Remove default locations in the OpenCellId cache database (useful when assuming that the corresponding cells are now known to the OpenCellId):
+
+    sqlite3 uwl_cells.sqlite
     DELETE FROM cells WHERE range=4294967295;
     VACUUM;
 
