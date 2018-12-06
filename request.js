@@ -16,8 +16,11 @@ const RE_FETCH_OPENCELLID_CODE = /\scode="([+\-\d\.]+)"/i;
 // error answer in OpenCellId response
 const RE_OPENCELLID_ERROR = /err\s+info="[^"]+"\s+code="/i;
 
-// quota exceeded answer for UnwiredLabs fallback
-const RE_UNWIREDLABS_QUOTA = /free fallback requests/i
+// quota exceeded answer for OpenCellId response
+const RE_OPENCELLID_QUOTA = /exceeded/i
+
+// quota exceeded answer for UnwiredLabs fallback response
+const RE_UNWIREDLABS_QUOTA = /free/i
 
 /**
  * Perform request to Location Service.
@@ -163,8 +166,9 @@ module.exports = {
         const response_encoding = 'utf8';
 
         const response_parser = buf => {
+            console.log(buf);
             try {
-                if (RE_UNWIREDLABS_QUOTA.test(buf)) {
+                if (RE_OPENCELLID_QUOTA.test(buf) || RE_UNWIREDLABS_QUOTA.test(buf)) {
                     const coords = {
                         lat: 0,
                         lon: 0,
