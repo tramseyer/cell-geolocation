@@ -103,8 +103,8 @@ http.createServer(function(req, res) {
                       res.end(JSON.stringify(err));
                       return;
                     }
-                    console.log(util.format('Queried Google GLM MMAP for %s: %s, %s, %s, %s -> %s, %s, %s',
-                                req.connection.remoteAddress,
+                    console.log(util.format('Req#%d: Queried Google GLM MMAP for %s: %s, %s, %s, %s -> %s, %s, %s',
+                                numValidRequests, req.connection.remoteAddress,
                                 url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid,
                                 coords.lat, coords.lon, coords.range));
                     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -145,8 +145,8 @@ http.createServer(function(req, res) {
                               res.end(JSON.stringify(err));
                               return;
                             }
-                            console.log(util.format('Queried OpenCellId for %s: %s, %s, %s, %s -> %s, %s, %s',
-                                        req.connection.remoteAddress,
+                            console.log(util.format('Req#%d: Queried OpenCellId for %s: %s, %s, %s, %s -> %s, %s, %s',
+                                        numValidRequests, req.connection.remoteAddress,
                                         url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid,
                                         coords.lat, coords.lon, coords.range));
                             res.writeHead(200, { 'Content-Type': 'application/json' });
