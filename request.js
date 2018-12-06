@@ -166,7 +166,6 @@ module.exports = {
         const response_encoding = 'utf8';
 
         const response_parser = buf => {
-            console.log(buf);
             try {
                 if (RE_OPENCELLID_QUOTA.test(buf) || RE_UNWIREDLABS_QUOTA.test(buf)) {
                     const coords = {
