@@ -74,17 +74,17 @@ Query which can now be answered by using the Google GLM MMAP cache database (3):
 
 Query which can be answered by using the OpenCellId online service (6):
 
-    curl -s 'http://localhost:5265/?mcc=204&mnc=4&lac=217&cellid=48189702'
+    curl -s 'http://localhost:5265/?mcc=206&mnc=1&lac=3011&cellid=66991912'
     {"lat":52.326586,"lon":5.093599,"range":4545}
 
 Query which can now be answered by using the OpenCellId cache database (5):
 
-    curl -s 'http://localhost:5265/?mcc=204&mnc=4&lac=217&cellid=48189702'
+    curl -s 'http://localhost:5265/?mcc=206&mnc=1&lac=3011&cellid=66991912'
     {"lat":52.326586,"lon":5.093599,"range":4545}
 
 Query with existing cell tower which can only be answered by using the default location (7):
 
-    curl -s 'http://localhost:5265/?mcc=206&mnc=20&lac=252&cellid=333154'
+    curl -s 'http://localhost:5265/?mcc=999&mnc=1&lac=3011&cellid=66991912'
     {"lat":46.909009,"lon":7.360584,"range":4294967295}
 
 Query with non-existing cell tower which can only be answered by using the default location (8):
@@ -96,13 +96,7 @@ The output is always a JSON object that has lat, lon and range.
 
 ## Maintenance
 
-Remove default locations in the Google GLM MMAP cache database (useful when assuming that the corresponding cells are now known to the Google GLM MMAP):
-
-    sqlite3 glm_cells.sqlite
-    DELETE FROM cells WHERE range=4294967295;
-    VACUUM;
-
-Remove default locations in the OpenCellId cache database (useful when assuming that the corresponding cells are now known to the OpenCellId):
+Remove default locations in the OpenCellId cache database (useful when assuming that the corresponding cells are now known by either Google GLM MMAP or OpenCellId):
 
     sqlite3 uwl_cells.sqlite
     DELETE FROM cells WHERE range=4294967295;
