@@ -2,6 +2,8 @@
 
 A self hosted cell tower geolocation server inspired by [Jan Jongboom](https://github.com/janjongboom/opencellid).
 
+You'll want to use this if you want to have the most complete, free and self hosted cell tower geolocation server.
+
 Underneath the hood, the following data sources are used in descending order:
 1. [OpenCellId: offline database](https://www.opencellid.org/downloads.php)
 2. [Mozilla Location Service: offline database](https://location.services.mozilla.com/downloads)
@@ -11,7 +13,7 @@ Underneath the hood, the following data sources are used in descending order:
 6. [OpenCellId (effectively a fallback to UnwiredLabs): online service](http://wiki.opencellid.org/wiki/API)
 7. Default location (Latitude = 46.909009, Longitude = 7.360584 and Range = 4294967295)
 
-You'll want to use this if you want to have the most complete, free and self hosted cell tower geolocation server.
+![](overview.png)
 
 Remark: The OpenBmap / Radiocells.org database is not used, because it is considered tiny compared to the OpenCellId and Mozilla Location Service databases.
 
