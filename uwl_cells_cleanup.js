@@ -1,0 +1,132 @@
+const sqlite3 = require('sqlite3');
+const path = require('path');
+const util = require('util');
+const request = require(path.join(__dirname,'./request.js'));
+const ociDb = new sqlite3.Database(path.join(__dirname, 'oci_cells.sqlite'), sqlite3.OPEN_READONLY);
+const mlsDb = new sqlite3.Database(path.join(__dirname, 'mls_cells.sqlite'), sqlite3.OPEN_READONLY);
+const glmDb = new sqlite3.Database(path.join(__dirname, 'glm_cells.sqlite'), sqlite3.OPEN_READONLY);
+const uwlDb = new sqlite3.Database(path.join(__dirname, 'uwl_cells.sqlite'), sqlite3.OPEN_READWRITE);
+
+var numProcessedEntries = 0;
+
+uwlDb.each("SELECT mcc, mnc, lac, cellid FROM cells", function(err, uwlRow) {
+  if (err) {
+    console.error('Error querying OpenCellId cache database');
+    return;
+  } else {
+    numProcessedEntries++;
+    ociDb.get('SELECT lat, lon, range FROM cells WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', {
+      1: uwlRow.mcc,
+      2: uwlRow.mnc,
+      3: uwlRow.lac,
+      4: uwlRow.cellid
+    }, function(err, row) {
+      if (err) {
+        console.error('Error querying OpenCellId database');
+        return;
+      }
+
+      if (typeof row != 'undefined') {
+        uwlDb.run('DELETE FROM cells WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', {
+          1: uwlRow.mcc,
+          2: uwlRow.mnc,
+          3: uwlRow.lac,
+          4: uwlRow.cellid
+        }, function(err) {
+          if (err) {
+            console.error('Error removing entry in OpenCellId cache database');
+            return;
+          } else {
+            console.log(util.format('Removed %d %d %d %d because already in OpenCellId database', uwlRow.mcc, uwlRow.mnc, uwlRow.lac, uwlRow.cellid));
+            return;
+          }
+        });
+      } else {
+        mlsDb.get('SELECT lat, lon, range FROM cells WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', {
+          1: uwlRow.mcc,
+          2: uwlRow.mnc,
+          3: uwlRow.lac,
+          4: uwlRow.cellid
+        }, function(err, row) {
+          if (err) {
+            console.error('Error querying Mozilla Location Service database');
+            return;
+          }
+
+          if (typeof row != 'undefined') {
+            uwlDb.run('DELETE FROM cells WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', {
+              1: uwlRow.mcc,
+              2: uwlRow.mnc,
+              3: uwlRow.lac,
+              4: uwlRow.cellid
+            }, function(err) {
+              if (err) {
+                console.error('Error removing entry in OpenCellId cache database');
+                return;
+              } else {
+                console.log(util.format('Removed %d %d %d %d because already in Mozilla Location Service database', uwlRow.mcc, uwlRow.mnc, uwlRow.lac, uwlRow.cellid));
+                return;
+              }
+            });
+          } else {
+            glmDb.get('SELECT lat, lon, range FROM cells WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', {
+              1: uwlRow.mcc,
+              2: uwlRow.mnc,
+              3: uwlRow.lac,
+              4: uwlRow.cellid
+            }, function(err, row) {
+              if (err) {
+                console.error('Error querying Google GLM MMAP database');
+                return;
+              }
+
+              if (typeof row != 'undefined') {
+                console.log(util.format('Entry %d %d %d %d already in Google GLM MMAP cache database', uwlRow.mcc, uwlRow.mnc, uwlRow.lac, uwlRow.cellid));
+                uwlDb.run('DELETE FROM cells WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', {
+                  1: uwlRow.mcc,
+                  2: uwlRow.mnc,
+                  3: uwlRow.lac,
+                  4: uwlRow.cellid
+                }, function(err) {
+                  if (err) {
+                    console.error('Error removing entry in OpenCellId cache database');
+                    return;
+                  } else {
+                    console.log(util.format('Removed %d %d %d %d because already in Google GLM MMAP cache database', uwlRow.mcc, uwlRow.mnc, uwlRow.lac, uwlRow.cellid));
+                    return;
+                  }
+                });
+              } else {
+                request.glm(uwlRow.mcc,uwlRow.mnc,uwlRow.lac,uwlRow.cellid).then(coords => {
+                  uwlDb.run('DELETE FROM cells WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', {
+                    1: uwlRow.mcc,
+                    2: uwlRow.mnc,
+                    3: uwlRow.lac,
+                    4: uwlRow.cellid
+                  }, function(err) {
+                    if (err) {
+                      console.error('Error removing entry in OpenCellId cache database');
+                      return;
+                    } else {
+                      console.log(util.format('Removed %d %d %d %d because already in Google GLM MMAP online service', uwlRow.mcc, uwlRow.mnc, uwlRow.lac, uwlRow.cellid));
+                      return;
+                    }
+                  });
+                }).catch(err => {
+                });
+              }
+            });
+          }
+        });
+      }
+    });
+  }
+});
+
+process.on('exit', function() {
+  ociDb.close();
+  mlsDb.close();
+  glmDb.close();
+  uwlDb.close();
+  console.log(util.format('Processed entries: %d', numProcessedEntries));
+});
