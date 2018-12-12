@@ -101,12 +101,12 @@ Remove entries in Google GLM MMAP cache database which are present in OpenCellId
     
 Remove entries in OpenCellId cache database which are present in OpenCellId database, Mozilla Location Service database, Google GLM MMAP cache database or online service:
 
-    node uwl-cells-cleanup.js
+    node uwl_cells-cleanup.js
     echo "VACUUM;" | sqlite3 uwl_cells.sqlite
 
 Remove default locations in the OpenCellId cache database (useful when assuming that the corresponding cells are now known by either Google GLM MMAP or OpenCellId):
 
-    echo "DELETE FROM cells WHERE range=4294967295;" sqlite3 uwl_cells.sqlite
+    echo "DELETE FROM cells WHERE range=4294967295;" | sqlite3 uwl_cells.sqlite
     echo "VACUUM;" | sqlite3 uwl_cells.sqlite
 
 ## Resources
