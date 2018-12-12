@@ -33,7 +33,7 @@ http.createServer(function(req, res) {
     if (!url.query.mcc || !url.query.mnc || !url.query.lac || !url.query.cellid) {
       res.writeHead(400);
       return res.end('Need mcc, mnc, lac, cellid passed in as query parameters');
-    } else if (url.query.mcc > 999) {
+    } else if ((url.query.mcc > 999) || (url.query.mnc > 999) || (url.query.lac > 65535) || (url.query.cellid > 268435455)) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(util.format('{"lat":%d,"lon":%d,"range":%d}',
               defaultLatitude, defaultLongitude, defaultRange));
@@ -85,49 +85,49 @@ http.createServer(function(req, res) {
                 return;
               }
 
-              // -4- if Google GLM MMAP cache database did not have a match, query Google GLM MMAP
+              // -4- if Google GLM MMAP cache database did not have a match, query OpenCellId cache database
               if (typeof row == 'undefined') {
-                request.glm(url.query.mcc,url.query.mnc,url.query.lac,url.query.cellid).then(coords => {
-                  glmDb.run('INSERT INTO cells (mcc, mnc, lac, cellid, lat, lon, range) VALUES(?,?,?,?,?,?,?)', {
-                    1: url.query.mcc,
-                    2: url.query.mnc,
-                    3: url.query.lac,
-                    4: url.query.cellid,
-                    5: coords.lat,
-                    6: coords.lon,
-                    7: coords.range
-                  }, function(err, result) {
-                    if (err) {
-                      console.error('Error inserting queried location into Google GLM MMAP cache database');
-                      res.writeHead(500);
-                      res.end(JSON.stringify(err));
-                      return;
-                    }
-                    console.log(util.format('Req#%d/%d: Queried Google GLM MMAP for %s: %s, %s, %s, %s -> %s, %s, %s',
-                                numValidRequests, numUnknownCells, req.connection.remoteAddress,
-                                url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid,
-                                coords.lat, coords.lon, coords.range));
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(util.format('{"lat":%d,"lon":%d,"range":%d}', coords.lat, coords.lon, coords.range));
+                uwlDb.get('SELECT lat, lon, range FROM cells WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', {
+                  1: url.query.mcc,
+                  2: url.query.mnc,
+                  3: url.query.lac,
+                  4: url.query.cellid
+                }, function(err, row) {
+                  if (err) {
+                    console.error('Error querying OpenCellId cache database');
+                    res.writeHead(500);
+                    res.end(JSON.stringify(err));
                     return;
-                  });
-                }).catch(err => {
-                  // -5- Google GLM MMAP did not have a match, query OpenCellId cache database
-                  uwlDb.get('SELECT lat, lon, range FROM cells WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', {
-                    1: url.query.mcc,
-                    2: url.query.mnc,
-                    3: url.query.lac,
-                    4: url.query.cellid
-                  }, function(err, row) {
-                    if (err) {
-                      console.error('Error querying OpenCellId cache database');
-                      res.writeHead(500);
-                      res.end(JSON.stringify(err));
-                      return;
-                    }
+                  }
 
-                    // -6- if OpenCellId cache database did not have a match, query OpenCellId
-                    if (typeof row == 'undefined') {
+                  // -5- if OpenCellId cache database did not have a match, query Google GLM MMAP online service
+                  if (typeof row == 'undefined') {
+                    request.glm(url.query.mcc,url.query.mnc,url.query.lac,url.query.cellid).then(coords => {
+                      glmDb.run('INSERT INTO cells (mcc, mnc, lac, cellid, lat, lon, range) VALUES(?,?,?,?,?,?,?)', {
+                        1: url.query.mcc,
+                        2: url.query.mnc,
+                        3: url.query.lac,
+                        4: url.query.cellid,
+                        5: coords.lat,
+                        6: coords.lon,
+                        7: coords.range
+                      }, function(err, result) {
+                        if (err) {
+                          console.error('Error inserting queried location into Google GLM MMAP cache database');
+                          res.writeHead(500);
+                          res.end(JSON.stringify(err));
+                          return;
+                        }
+                        console.log(util.format('Req#%d/%d: Queried Google GLM MMAP for %s: %s, %s, %s, %s -> %s, %s, %s',
+                                    numValidRequests, numUnknownCells, req.connection.remoteAddress,
+                                    url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid,
+                                    coords.lat, coords.lon, coords.range));
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(util.format('{"lat":%d,"lon":%d,"range":%d}', coords.lat, coords.lon, coords.range));
+                        return;
+                      });
+                    }).catch(err => {
+                      // -6- if Google GLM MMAP did not have a match, query OpenCellId online service
                       request.oci(url.query.mcc,url.query.mnc,url.query.lac,url.query.cellid, OPENCELLID_API_KEY).then(coords => {
                         if (coords.statusCode == 200) { // ok
                           uwlDb.run('INSERT INTO cells (mcc, mnc, lac, cellid, lat, lon, range) VALUES(?,?,?,?,?,?,?)', {
@@ -195,23 +195,23 @@ http.createServer(function(req, res) {
                         res.end(JSON.stringify(err));
                         return;
                       });
-                    } else {
-                      res.writeHead(200, { 'Content-Type': 'application/json' });
-                      res.end(JSON.stringify(row));
-                    }
-                  });
+                    });
+                  } else { // -4- OpencellId cache database did have a match
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify(row));
+                  }
                 });
-              } else {
+              } else { // -3- Google GLM MMAP cache database did have a match
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify(row));
               }
             });
-          } else {
+          } else { // -2- Mozilla Location Service database did have a match
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify(row));
           }
         });
-      } else {
+      } else { // -1- OpenCellId database did have a match
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(row));
       }
