@@ -117,6 +117,7 @@ Remove duplicate entries in Google GLM MMAP and OpenCellId cache database:
     echo "VACUUM;" | sqlite3 uwl_cells.sqlite
 
 Find duplicate entries in Google GLM MMAP and OpenCellId cache database:
+
     echo "SELECT mcc, mnc, lac, cellid, count(*) as cell FROM cells GROUP BY mcc, mnc, lac, cellid HAVING count(*)> 1;" | sqlite3 glm_cells.sqlite
     echo "SELECT mcc, mnc, lac, cellid, count(*) as cell FROM cells GROUP BY mcc, mnc, lac, cellid HAVING count(*)> 1;" | sqlite3 uwl_cells.sqlite
 
