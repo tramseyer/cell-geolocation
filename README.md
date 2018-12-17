@@ -98,7 +98,7 @@ Remove entries in Google GLM MMAP cache database which are present in OpenCellId
 
     node glm_cells-cleanup.js
     echo "VACUUM;" | sqlite3 glm_cells.sqlite
-    
+
 Remove entries in OpenCellId cache database which are present in OpenCellId database, Mozilla Location Service database, Google GLM MMAP cache database or online service:
 
     node uwl_cells-cleanup.js
@@ -108,6 +108,17 @@ Remove default locations in the OpenCellId cache database (useful when assuming 
 
     echo "DELETE FROM cells WHERE range=4294967295;" | sqlite3 uwl_cells.sqlite
     echo "VACUUM;" | sqlite3 uwl_cells.sqlite
+
+Remove duplicate entries in Google GLM MMAP and OpenCellId cache database:
+
+    echo "DELETE FROM cells WHERE rowid NOT IN (SELECT min(rowid) FROM cells GROUP BY mcc, mnc, lac, cellid);" | sqlite3 glm_cells.sqlite
+    echo "VACUUM;" | sqlite3 glm_cells.sqlite
+    echo "DELETE FROM cells WHERE rowid NOT IN (SELECT min(rowid) FROM cells GROUP BY mcc, mnc, lac, cellid);" | sqlite3 uwl_cells.sqlite
+    echo "VACUUM;" | sqlite3 uwl_cells.sqlite
+
+Find duplicate entries in Google GLM MMAP and OpenCellId cache database:
+    echo "SELECT mcc, mnc, lac, cellid, count(*) as cell FROM cells GROUP BY mcc, mnc, lac, cellid HAVING count(*)> 1;" | sqlite3 glm_cells.sqlite
+    echo "SELECT mcc, mnc, lac, cellid, count(*) as cell FROM cells GROUP BY mcc, mnc, lac, cellid HAVING count(*)> 1;" | sqlite3 uwl_cells.sqlite
 
 ## Resources
 
