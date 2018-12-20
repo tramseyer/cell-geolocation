@@ -1,4 +1,7 @@
 node_modules/
+package-lock.json
+*.c
 *.csv
 *.csv.gz
 *.sqlite
+*.so

@@ -23,6 +23,7 @@ Remark: The OpenBmap / Radiocells.org offline database is not used, because it i
 
 ### SQLite extension-functions.c
 
+    sudo apt-get install -y libsqlite3-dev
     wget -O extension-functions.c https://www.sqlite.org/contrib/download/extension-functions.c?get=25
     gcc -fPIC -lm -shared extension-functions.c -o libsqlitefunctions.so
 
