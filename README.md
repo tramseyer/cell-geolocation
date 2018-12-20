@@ -9,15 +9,22 @@ Underneath the hood, the following data sources are used in descending order:
 2. [Mozilla Location Service: offline database](https://location.services.mozilla.com/downloads)
 3. Google GLM MMAP: self created cache database
 4. OpenCellId (effectively a fallback to UnwiredLabs): self created cache database
-5. [Google GLM MMAP: online service](https://github.com/kolonist/bscoords)
-6. [OpenCellId (effectively a fallback to UnwiredLabs): online service](http://wiki.opencellid.org/wiki/API)
-7. Default location (Latitude = 46.909009, Longitude = 7.360584 and Range = 4294967295)
+5. Own cache database with approximated and default locations
+6. [Google GLM MMAP: online service](https://github.com/kolonist/bscoords)
+7. [OpenCellId (effectively a fallback to UnwiredLabs): online service](http://wiki.opencellid.org/wiki/API)
+8. Approximated location according to midpoint of towers from OpenCellId offline database with same MCC, MNC and LAC (range: 2147483648)
+9. Default location (lat: 46.909009, lon: 7.360584, range: 4294967295)
 
 ![](overview.png)
 
-Remark: The OpenBmap / Radiocells.org database is not used, because it is considered tiny compared to the OpenCellId and Mozilla Location Service databases.
+Remark: The OpenBmap / Radiocells.org offline database is not used, because it is considered tiny compared to the OpenCellId and Mozilla Location Service databases.
 
 ## Installation (database creation)
+
+### SQLite extension-functions.c
+
+    wget -O extension-functions.c https://www.sqlite.org/contrib/download/extension-functions.c?get=25
+    gcc -fPIC -lm -shared extension-functions.c -o libsqlitefunctions.so
 
 ### OpenCellId database
 
@@ -40,6 +47,10 @@ Remark: The OpenBmap / Radiocells.org database is not used, because it is consid
 ### OpenCellId (effectively a fallback to UnwiredLabs) cache database
 
     cat cache_schema.sql | sqlite3 uwl_cells.sqlite
+
+### Approximated and default cache database
+
+    cat cache_schema.sql | sqlite3 own_cells.sqlite
 
 ## Running
 
@@ -64,29 +75,39 @@ Query which can be answered by using the Mozilla Location Service database (2):
     curl -s 'http://localhost:5265/?mcc=204&mnc=4&lac=203&cellid=48045204'
     {"lat":51.4649645,"lon":4.3089691,"range":47}
 
-Query which can be answered by using the Google GLM MMAP online service (5):
+Query which can be answered by using the Google GLM MMAP online service (6):
 
     curl -s 'http://localhost:5265/?mcc=206&mnc=1&lac=3034&cellid=65927425'
-    {"lat":51.183995,"lon":4.360154,"range":1204}
+    {"lat":51.184073,"lon":4.36019,"range":1210}
 
 Query which can now be answered by using the Google GLM MMAP cache database (3):
 
     curl -s 'http://localhost:5265/?mcc=206&mnc=1&lac=3034&cellid=65927425'
-    {"lat":51.088892,"lon":4.456987,"range":1492}
+    {"lat":51.184073,"lon":4.36019,"range":1210}
 
-Query which can be answered by using the OpenCellId online service (6):
+Query which can be answered by using the OpenCellId online service (7):
 
-    curl -s 'http://localhost:5265/?mcc=204&mnc=4&lac=207&cellid=48051720'
-    {"lat":50.970299,"lon":5.79788,"range":4545}
+    curl -s 'http://localhost:5265/?mcc=204&mnc=4&lac=212&cellid=48053995'
+    {"lat":51.999298,"lon":6.26473,"range":318}
 
 Query which can now be answered by using the OpenCellId cache database (4):
 
-    curl -s 'http://localhost:5265/?mcc=204&mnc=4&lac=207&cellid=48051720'
-    {"lat":50.970299,"lon":5.79788,"range":4545}
+    curl -s 'http://localhost:5265/?mcc=204&mnc=4&lac=212&cellid=48053995'
+    {"lat":51.999298,"lon":6.26473,"range":318}
 
-Query with non-existing cell tower which can only be answered by using the default location (7):
+Query with non-existing cell tower which can be answered by using the approximated location (8):
 
-    curl -s 'http://localhost:5265/?mcc=999&mnc=4&lac=207&cellid=48051720'
+    curl -s 'http://localhost:5265/?mcc=204&mnc=4&lac=212&cellid=99999999'
+    {"lat":51.80883396670778,"lon":5.773024994544559,"range":2147483648}
+
+Query which can now be answered by using the own cache database (5):
+
+    curl -s 'http://localhost:5265/?mcc=204&mnc=4&lac=212&cellid=99999999'
+    {"lat":51.80883396670778,"lon":5.773024994544559,"range":2147483648}
+
+Query with non-existing cell tower which can only be answered by using the default location (9):
+
+    curl -s 'http://localhost:5265/?mcc=0&mnc=0&lac=0&cellid=0'
     curl -s 'http://localhost:5265/?mcc=3100&mnc=41&lac=42971&cellid=9906077'
     {"lat":46.909009,"lon":7.360584,"range":4294967295}
 
@@ -104,22 +125,30 @@ Remove entries in OpenCellId cache database which are present in OpenCellId data
     node uwl_cells-cleanup.js
     echo "VACUUM;" | sqlite3 uwl_cells.sqlite
 
-Remove default locations in the OpenCellId cache database (useful when assuming that the corresponding cells are now known by either Google GLM MMAP or OpenCellId):
+Remove approximated locations in the own cache database (useful when assuming that the corresponding cells are now known by higher priority sources):
 
-    echo "DELETE FROM cells WHERE range=4294967295;" | sqlite3 uwl_cells.sqlite
-    echo "VACUUM;" | sqlite3 uwl_cells.sqlite
+    echo "DELETE FROM cells WHERE range=2147483648;" | sqlite3 own_cells.sqlite
+    echo "VACUUM;" | sqlite3 own_cells.sqlite
 
-Remove duplicate entries in Google GLM MMAP and OpenCellId cache database:
+Remove default locations in the own cache database (useful when assuming that the corresponding cells are now known by higher priority sources):
+
+    echo "DELETE FROM cells WHERE range=4294967295;" | sqlite3 own_cells.sqlite
+    echo "VACUUM;" | sqlite3 own_cells.sqlite
+
+Remove duplicate entries in Google GLM MMAP, OpenCellId and own cache database:
 
     echo "DELETE FROM cells WHERE rowid NOT IN (SELECT min(rowid) FROM cells GROUP BY mcc, mnc, lac, cellid);" | sqlite3 glm_cells.sqlite
     echo "VACUUM;" | sqlite3 glm_cells.sqlite
     echo "DELETE FROM cells WHERE rowid NOT IN (SELECT min(rowid) FROM cells GROUP BY mcc, mnc, lac, cellid);" | sqlite3 uwl_cells.sqlite
     echo "VACUUM;" | sqlite3 uwl_cells.sqlite
+    echo "DELETE FROM cells WHERE rowid NOT IN (SELECT min(rowid) FROM cells GROUP BY mcc, mnc, lac, cellid);" | sqlite3 own_cells.sqlite
+    echo "VACUUM;" | sqlite3 own_cells.sqlite
 
 Find duplicate entries in Google GLM MMAP and OpenCellId cache database:
 
     echo "SELECT mcc, mnc, lac, cellid, count(*) as cell FROM cells GROUP BY mcc, mnc, lac, cellid HAVING count(*)> 1;" | sqlite3 glm_cells.sqlite
     echo "SELECT mcc, mnc, lac, cellid, count(*) as cell FROM cells GROUP BY mcc, mnc, lac, cellid HAVING count(*)> 1;" | sqlite3 uwl_cells.sqlite
+    echo "SELECT mcc, mnc, lac, cellid, count(*) as cell FROM cells GROUP BY mcc, mnc, lac, cellid HAVING count(*)> 1;" | sqlite3 own_cells.sqlite
 
 ## Resources
 
