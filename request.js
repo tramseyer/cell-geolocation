@@ -121,7 +121,7 @@ module.exports = {
 
         const response_parser = buf => {
             try {
-                if (buf.length < 30) {
+                if (buf.length < 38) {
                     return null;
                 }
 
