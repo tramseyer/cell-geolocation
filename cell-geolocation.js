@@ -402,7 +402,7 @@ http.createServer(function(req, res) {
     });
   } else if (req.method === 'GET' && url.pathname === '/version') { 
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(ociDbMtime);
+      res.end(ociDbMtime.toString());
   } else {
     res.writeHead(404);
     res.end('Nothing to see here');
