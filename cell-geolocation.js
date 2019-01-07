@@ -160,8 +160,8 @@ http.createServer(function(req, res) {
                             5: coords.lat,
                             6: coords.lon,
                             7: coords.range,
-                            8: Math.floor(new Date().getTime()/1000|0,
-                            9: Math.floor(new Date().getTime()/1000|0
+                            8: Math.floor(new Date().getTime()/1000|0),
+                            9: Math.floor(new Date().getTime()/1000|0)
                           }, function(err, result) {
                             if (err) {
                               console.error('Error inserting queried location into Google GLM MMAP cache database');
@@ -192,8 +192,8 @@ http.createServer(function(req, res) {
                                 5: coords.lat,
                                 6: coords.lon,
                                 7: coords.range,
-                                8: Math.floor(new Date().getTime()/1000|0,
-                                9: Math.floor(new Date().getTime()/1000|0
+                                8: Math.floor(new Date().getTime()/1000|0),
+                                9: Math.floor(new Date().getTime()/1000|0)
                               }, function(err, result) {
                                 if (err) {
                                   console.error('Error inserting queried location into OpenCellId cache database');
@@ -235,8 +235,8 @@ http.createServer(function(req, res) {
                                     5: row.lat,
                                     6: row.lon,
                                     7: approximatedRange,
-                                    8: Math.floor(new Date().getTime()/1000|0,
-                                    9: Math.floor(new Date().getTime()/1000|0
+                                    8: Math.floor(new Date().getTime()/1000|0),
+                                    9: Math.floor(new Date().getTime()/1000|0)
                                   }, function(err, result) {
                                     if (err) {
                                       console.error('Error inserting default location into own cache database');
@@ -266,8 +266,8 @@ http.createServer(function(req, res) {
                                     5: defaultLatitude,
                                     6: defaultLongitude,
                                     7: defaultRange,
-                                    8: Math.floor(new Date().getTime()/1000|0,
-                                    9: Math.floor(new Date().getTime()/1000|0
+                                    8: Math.floor(new Date().getTime()/1000|0),
+                                    9: Math.floor(new Date().getTime()/1000|0)
                                   }, function(err, result) {
                                     if (err) {
                                       console.error('Error inserting default location into own cache database');
