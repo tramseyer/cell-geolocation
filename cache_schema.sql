@@ -5,6 +5,8 @@ CREATE TABLE cells (
     cellid INTEGER,
     lon FLOAT,
     lat FLOAT,
-    range INTEGER
+    range INTEGER,
+    created_at INTEGER,
+    updated_at INTEGER
 );
 CREATE INDEX cells_idx ON cells(mcc, mnc, lac, cellid);
