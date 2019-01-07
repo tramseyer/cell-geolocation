@@ -17,7 +17,7 @@ const defaultLatitude = 46.909009;
 const defaultLongitude = 7.360584;
 const defaultRange = 4294967295;
 
-const ociDbMtime = new Date(fs.statSync("oci_cells.sqlite").mtime).getTime()/1000|0;
+const ociDbMtime = new Date(fs.statSync(path.join(__dirname, 'oci_cells.sqlite')).mtime).getTime()/1000|0;
 console.log('Main database (OpenCellId) last modifed at:', ociDbMtime);
 
 const OPENCELLID_API_KEY = process.env.OPENCELLID_API_KEY;
