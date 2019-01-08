@@ -64,7 +64,7 @@ Use environment variables PORT and IP for different port/host. F.e.:
 
     PORT=1337 OPENCELLID_API_KEY=<YOURS> node cell-geolocation.js
 
-## Queries and Responses (as of January 2018)
+## Queries and Responses (as of January 2019)
 
 Query which can be answered by using the Mozilla Location Service database (1):
 
