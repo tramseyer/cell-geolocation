@@ -5,8 +5,8 @@ A self hosted cell tower geolocation server inspired by [Jan Jongboom](https://g
 You'll want to use this if you want to have the most complete, free and self hosted cell tower geolocation server.
 
 Underneath the hood, the following data sources are used in descending order:
-1. [OpenCellId: offline database](https://www.opencellid.org/downloads.php)
-2. [Mozilla Location Service: offline database](https://location.services.mozilla.com/downloads)
+1. [Mozilla Location Service: offline database](https://location.services.mozilla.com/downloads)
+2. [OpenCellId: offline database](https://www.opencellid.org/downloads.php)
 3. Google GLM MMAP: self created cache database
 4. OpenCellId (effectively a fallback to UnwiredLabs): self created cache database
 5. Own cache database with approximated and default locations
@@ -27,19 +27,19 @@ Remark: The OpenBmap / Radiocells.org offline database is not used, because it i
     wget -O extension-functions.c https://www.sqlite.org/contrib/download/extension-functions.c?get=25
     gcc -fPIC -lm -shared extension-functions.c -o libsqlitefunctions.so
 
-### OpenCellId database
-
-    wget -O oci_cells.csv.gz "https://download.unwiredlabs.com/ocid/downloads?token=<YOUR_OPENCELLID_API_KEY>&file=cell_towers.csv.gz"
-    cat oci_cells.csv.gz | gunzip - > oci_cells.csv
-    cat schema.sql | sqlite3 oci_cells.sqlite
-    cat oci_import.sql | sqlite3 oci_cells.sqlite
-
 ### Mozilla Location Service database
 
     wget -O mls_cells.csv.gz "https://d17pt8qph6ncyq.cloudfront.net/export/MLS-full-cell-export-$(date -u "+%Y-%m-%d")T000000.csv.gz"
     cat mls_cells.csv.gz | gunzip - > mls_cells.csv
     cat schema.sql | sqlite3 mls_cells.sqlite
     cat mls_import.sql | sqlite3 mls_cells.sqlite
+
+### OpenCellId database
+
+    wget -O oci_cells.csv.gz "https://download.unwiredlabs.com/ocid/downloads?token=<YOUR_OPENCELLID_API_KEY>&file=cell_towers.csv.gz"
+    cat oci_cells.csv.gz | gunzip - > oci_cells.csv
+    cat schema.sql | sqlite3 oci_cells.sqlite
+    cat oci_import.sql | sqlite3 oci_cells.sqlite
 
 ### Google GLM MMAP cache database
 
@@ -64,47 +64,47 @@ Use environment variables PORT and IP for different port/host. F.e.:
 
     PORT=1337 OPENCELLID_API_KEY=<YOURS> node cell-geolocation.js
 
-## Queries and Responses (as of December 2018)
+## Queries and Responses (as of January 2018)
 
-Query which can be answered by using the OpenCellId database (1):
+Query which can be answered by using the Mozilla Location Service database (1):
 
-    curl -s 'http://localhost:5265/?mcc=228&mnc=1&lac=505&cellid=10545'
-    {"lat":47.492113,"lon":8.466422,"range":15744}
+    curl -s 'http://localhost:5265/?mcc=228&mnc=1&lac=1212&cellid=7377222'
+    {"lat":46.9226916,"lon":7.4132636,"range":1225}
 
-Query which can be answered by using the Mozilla Location Service database (2):
+Query which can be answered by using the OpenCellId database (2):
 
-    curl -s 'http://localhost:5265/?mcc=204&mnc=4&lac=203&cellid=48045204'
-    {"lat":51.4649645,"lon":4.3089691,"range":47}
+    curl -s 'http://localhost:5265/?mcc=228&mnc=1&lac=1212&cellid=7396209'
+    {"lat":46.924667358398,"lon":7.3876190185547,"range":1000}
 
 Query which can be answered by using the Google GLM MMAP online service (6):
 
     curl -s 'http://localhost:5265/?mcc=206&mnc=1&lac=3034&cellid=65927425'
-    {"lat":51.184073,"lon":4.36019,"range":1210}
+    {"lat":51.183955,"lon":4.360369,"range":1148}
 
 Query which can now be answered by using the Google GLM MMAP cache database (3):
 
     curl -s 'http://localhost:5265/?mcc=206&mnc=1&lac=3034&cellid=65927425'
-    {"lat":51.184073,"lon":4.36019,"range":1210}
+    {"lat":51.183955,"lon":4.360369,"range":1148}
 
 Query which can be answered by using the OpenCellId online service (7):
 
-    curl -s 'http://localhost:5265/?mcc=204&mnc=4&lac=212&cellid=48053995'
-    {"lat":51.999298,"lon":6.26473,"range":318}
+    curl -s 'http://localhost:5265/?mcc=206&mnc=1&lac=3023&cellid=66707986'
+    {"lat":51.236893,"lon":4.473432,"range":1139}
 
 Query which can now be answered by using the OpenCellId cache database (4):
 
-    curl -s 'http://localhost:5265/?mcc=204&mnc=4&lac=212&cellid=48053995'
-    {"lat":51.999298,"lon":6.26473,"range":318}
+    curl -s 'http://localhost:5265/?mcc=206&mnc=1&lac=3023&cellid=66707986'
+    {"lat":51.236893,"lon":4.473432,"range":1139}
 
 Query with non-existing cell tower which can be answered by using the approximated location (8):
 
     curl -s 'http://localhost:5265/?mcc=204&mnc=4&lac=212&cellid=99999999'
-    {"lat":51.80883396670778,"lon":5.773024994544559,"range":2147483648}
+    {"lat":51.808904742260744,"lon":5.773231356632328,"range":2147483648}
 
 Query which can now be answered by using the own cache database (5):
 
     curl -s 'http://localhost:5265/?mcc=204&mnc=4&lac=212&cellid=99999999'
-    {"lat":51.80883396670778,"lon":5.773024994544559,"range":2147483648}
+    {"lat":51.808904742260744,"lon":5.773231356632328,"range":2147483648}
 
 Query with non-existing cell tower which can only be answered by using the default location (9):
 
@@ -116,12 +116,12 @@ The output is always a JSON object that has lat, lon and range.
 
 ## Maintenance
 
-Remove entries in Google GLM MMAP cache database which are present in OpenCellId database or Mozilla Location Service database:
+Remove entries in Google GLM MMAP cache database which are present in Mozilla Location Service database or OpenCellId database:
 
     node glm_cells-cleanup.js
     echo "VACUUM;" | sqlite3 glm_cells.sqlite
 
-Remove entries in OpenCellId cache database which are present in OpenCellId database, Mozilla Location Service database, Google GLM MMAP cache database or online service:
+Remove entries in OpenCellId cache database which are present in Mozilla Location Service database, OpenCellId database, Google GLM MMAP cache database or online service:
 
     node uwl_cells-cleanup.js
     echo "VACUUM;" | sqlite3 uwl_cells.sqlite

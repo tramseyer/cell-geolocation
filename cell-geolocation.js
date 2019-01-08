@@ -5,8 +5,8 @@ const Url = require('url');
 const util = require('util');
 const fs = require('fs');
 const request = require(path.join(__dirname, 'request.js'));
-const ociDb = new sqlite3.Database(path.join(__dirname, 'oci_cells.sqlite'), sqlite3.OPEN_READONLY);
 const mlsDb = new sqlite3.Database(path.join(__dirname, 'mls_cells.sqlite'), sqlite3.OPEN_READONLY);
+const ociDb = new sqlite3.Database(path.join(__dirname, 'oci_cells.sqlite'), sqlite3.OPEN_READONLY);
 const glmDb = new sqlite3.Database(path.join(__dirname, 'glm_cells.sqlite'), sqlite3.OPEN_READWRITE);
 const uwlDb = new sqlite3.Database(path.join(__dirname, 'uwl_cells.sqlite'), sqlite3.OPEN_READWRITE);
 const ownDb = new sqlite3.Database(path.join(__dirname, 'own_cells.sqlite'), sqlite3.OPEN_READWRITE);
@@ -17,8 +17,8 @@ const defaultLatitude = 46.909009;
 const defaultLongitude = 7.360584;
 const defaultRange = 4294967295;
 
-const ociDbMtime = new Date(fs.statSync(path.join(__dirname, 'oci_cells.sqlite')).mtime).getTime()/1000|0;
-console.log('Main database (OpenCellId) last modifed at:', ociDbMtime);
+const mlsDbMtime = new Date(fs.statSync(path.join(__dirname, 'mls_cells.sqlite')).mtime).getTime()/1000|0;
+console.log('Main database (Mozilla) last modifed at:', mlsDbMtime);
 
 const OPENCELLID_API_KEY = process.env.OPENCELLID_API_KEY;
 if (typeof OPENCELLID_API_KEY != 'undefined') {
@@ -75,36 +75,36 @@ http.createServer(function(req, res) {
     }
 
     numValidRequests++;
-    // -1- query OpenCellId database
-    ociDb.get('SELECT lat, lon, range FROM cells WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', {
+    // -1- query Mozilla Location Service database
+    mlsDb.get('SELECT lat, lon, range FROM cells WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', {
       1: url.query.mcc,
       2: url.query.mnc,
       3: url.query.lac,
       4: url.query.cellid
     }, function(err, row) {
       if (err) {
-        console.error('Error querying OpenCellId database');
+        console.error('Error querying Mozilla Location Service database');
         res.writeHead(500);
         res.end(JSON.stringify(err));
         return;
       }
 
-      // -2- if OpenCellId database did not have a match, query Mozilla Location Service database
+      // -2- if Mozilla Location Service database did not have a match, query OpenCellId database
       if (typeof row == 'undefined') {
-        mlsDb.get('SELECT lat, lon, range FROM cells WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', {
+        ociDb.get('SELECT lat, lon, range FROM cells WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', {
           1: url.query.mcc,
           2: url.query.mnc,
           3: url.query.lac,
           4: url.query.cellid
         }, function(err, row) {
           if (err) {
-            console.error('Error querying Mozilla Location Service database');
+            console.error('Error querying OpenCellId database');
             res.writeHead(500);
             res.end(JSON.stringify(err));
             return;
           }
 
-          // -3- if Mozilla Location Service database did not have a match, query GLM MMAP cache database
+          // -3- if OpenCellId database did not have a match, query GLM MMAP cache database
           if (typeof row == 'undefined') {
             glmDb.get('SELECT lat, lon, range FROM cells WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', {
               1: url.query.mcc,
@@ -169,8 +169,8 @@ http.createServer(function(req, res) {
                               res.end(JSON.stringify(err));
                               return;
                             }
-                            console.log(util.format('Req#%d O#%d M#%d G#%d U#%d Own#%d/%d A#%d D#%d: Queried Google GLM MMAP for %s: %s, %s, %s, %s -> %s, %s, %s',
-                                        numValidRequests, numOpenCellIdResponses, numMozillaResponses, numGoogleResponses, numUnwiredLabsResponses,
+                            console.log(util.format('Req#%d M#%d O#%d G#%d U#%d Own#%d/%d A#%d D#%d: Queried Google GLM MMAP for %s: %s, %s, %s, %s -> %s, %s, %s',
+                                        numValidRequests, numMozillaResponses, numOpenCellIdResponses, numGoogleResponses, numUnwiredLabsResponses,
                                         numApproximatedResponses, numDefaultResponses, numApproximatedCells, numUnknownCells,
                                         req.connection.remoteAddress,
                                         url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid,
@@ -201,8 +201,8 @@ http.createServer(function(req, res) {
                                   res.end(JSON.stringify(err));
                                   return;
                                 }
-                                console.log(util.format('Req#%d O#%d M#%d G#%d U#%d Own#%d/%d A#%d D#%d: Queried OpenCellId for %s: %s, %s, %s, %s -> %s, %s, %s',
-                                            numValidRequests, numOpenCellIdResponses, numMozillaResponses, numGoogleResponses, numUnwiredLabsResponses,
+                                console.log(util.format('Req#%d M#%d O#%d G#%d U#%d Own#%d/%d A#%d D#%d: Queried OpenCellId for %s: %s, %s, %s, %s -> %s, %s, %s',
+                                            numValidRequests, numMozillaResponses, numOpenCellIdResponses, numGoogleResponses, numUnwiredLabsResponses,
                                             numApproximatedResponses, numDefaultResponses, numApproximatedCells, numUnknownCells,
                                             req.connection.remoteAddress,
                                             url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid,
@@ -244,8 +244,8 @@ http.createServer(function(req, res) {
                                       res.end(JSON.stringify(err));
                                       return;
                                     }
-                                    console.log(util.format('Req#%d O#%d M#%d G#%d U#%d Own#%d/%d A#%d D#%d: Replying with approximated location to %s due to %d: %s, %s, %s, %s -> %s, %s, %s',
-                                                numValidRequests, numOpenCellIdResponses, numMozillaResponses, numGoogleResponses, numUnwiredLabsResponses,
+                                    console.log(util.format('Req#%d M#%d O#%d G#%d U#%d Own#%d/%d A#%d D#%d: Replying with approximated location to %s due to %d: %s, %s, %s, %s -> %s, %s, %s',
+                                                numValidRequests, numMozillaResponses, numOpenCellIdResponses, numGoogleResponses, numUnwiredLabsResponses,
                                                 numApproximatedResponses, numDefaultResponses, numApproximatedCells, numUnknownCells,
                                                 req.connection.remoteAddress, coords.statusCode,
                                                 url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid,
@@ -275,8 +275,8 @@ http.createServer(function(req, res) {
                                       res.end(JSON.stringify(err));
                                       return;
                                     }
-                                    console.log(util.format('Req#%d O#%d M#%d G#%d U#%d Own#%d/%d A#%d D#%d: Replying with default location to %s due to %d: %s, %s, %s, %s',
-                                                numValidRequests, numOpenCellIdResponses, numMozillaResponses, numGoogleResponses, numUnwiredLabsResponses,
+                                    console.log(util.format('Req#%d M#%d O#%d G#%d U#%d Own#%d/%d A#%d D#%d: Replying with default location to %s due to %d: %s, %s, %s, %s',
+                                                numValidRequests, numMozillaResponses, numOpenCellIdResponses, numGoogleResponses, numUnwiredLabsResponses,
                                                 numApproximatedResponses, numDefaultResponses, numApproximatedCells, numUnknownCells,
                                                 req.connection.remoteAddress, coords.statusCode,
                                                 url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid));
@@ -316,8 +316,8 @@ http.createServer(function(req, res) {
                                       res.end(JSON.stringify(err));
                                       return;
                                     }
-                                    console.log(util.format('Req#%d O#%d M#%d G#%d U#%d Own#%d/%d A#%d D#%d: Replying with approximated location to %s due to %d: %s, %s, %s, %s -> %s, %s, %s',
-                                                numValidRequests, numOpenCellIdResponses, numMozillaResponses, numGoogleResponses, numUnwiredLabsResponses,
+                                    console.log(util.format('Req#%d M#%d O#%d G#%d U#%d Own#%d/%d A#%d D#%d: Replying with approximated location to %s due to %d: %s, %s, %s, %s -> %s, %s, %s',
+                                                numValidRequests, numMozillaResponses, numOpenCellIdResponses, numGoogleResponses, numUnwiredLabsResponses,
                                                 numApproximatedResponses, numDefaultResponses, numApproximatedCells, numUnknownCells,
                                                 req.connection.remoteAddress, coords.statusCode,
                                                 url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid,
@@ -345,8 +345,8 @@ http.createServer(function(req, res) {
                                       res.end(JSON.stringify(err));
                                       return;
                                     }
-                                    console.log(util.format('Req#%d O#%d M#%d G#%d U#%d Own#%d/%d A#%d D#%d: Replying with default location to %s due to %d: %s, %s, %s, %s',
-                                                numValidRequests, numOpenCellIdResponses, numMozillaResponses, numGoogleResponses, numUnwiredLabsResponses,
+                                    console.log(util.format('Req#%d M#%d O#%d G#%d U#%d Own#%d/%d A#%d D#%d: Replying with default location to %s due to %d: %s, %s, %s, %s',
+                                                numValidRequests, numMozillaResponses, numOpenCellIdResponses, numGoogleResponses, numUnwiredLabsResponses,
                                                 numApproximatedResponses, numDefaultResponses, numApproximatedCells, numUnknownCells,
                                                 req.connection.remoteAddress, coords.statusCode,
                                                 url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid));
@@ -389,20 +389,20 @@ http.createServer(function(req, res) {
               }
             });
           } else {
-            numMozillaResponses++;
+            numOpenCellIdResponses++;
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify(row));
           }
         });
       } else {
-        numOpenCellIdResponses++;
+        numMozillaResponses++;
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(row));
       }
     });
-  } else if (req.method === 'GET' && url.pathname === '/version') { 
+  } else if (req.method === 'GET' && url.pathname === '/version') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(ociDbMtime.toString());
+      res.end(mlsDbMtime.toString());
   } else {
     res.writeHead(404);
     res.end('Nothing to see here');
@@ -411,8 +411,8 @@ http.createServer(function(req, res) {
 }).listen(process.env.PORT || 5265, process.env.IP || '0.0.0.0');
 
 process.on('exit', function() {
-  ociDb.close();
   mlsDb.close();
+  ociDb.close();
   glmDb.close();
   uwlDb.close();
   ownDb.close();

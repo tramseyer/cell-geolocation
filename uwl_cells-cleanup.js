@@ -2,8 +2,8 @@ const sqlite3 = require('sqlite3');
 const path = require('path');
 const util = require('util');
 const request = require(path.join(__dirname,'./request.js'));
-const ociDb = new sqlite3.Database(path.join(__dirname, 'oci_cells.sqlite'), sqlite3.OPEN_READONLY);
 const mlsDb = new sqlite3.Database(path.join(__dirname, 'mls_cells.sqlite'), sqlite3.OPEN_READONLY);
+const ociDb = new sqlite3.Database(path.join(__dirname, 'oci_cells.sqlite'), sqlite3.OPEN_READONLY);
 const glmDb = new sqlite3.Database(path.join(__dirname, 'glm_cells.sqlite'), sqlite3.OPEN_READONLY);
 const uwlDb = new sqlite3.Database(path.join(__dirname, 'uwl_cells.sqlite'), sqlite3.OPEN_READWRITE);
 
@@ -15,14 +15,14 @@ uwlDb.each("SELECT mcc, mnc, lac, cellid FROM cells", function(err, uwlRow) {
     return;
   } else {
     numProcessedEntries++;
-    ociDb.get('SELECT lat, lon, range FROM cells WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', {
+    mlsDb.get('SELECT lat, lon, range FROM cells WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', {
       1: uwlRow.mcc,
       2: uwlRow.mnc,
       3: uwlRow.lac,
       4: uwlRow.cellid
     }, function(err, row) {
       if (err) {
-        console.error('Error querying OpenCellId database');
+        console.error('Error querying Mozilla Location Service database');
         return;
       }
 
@@ -42,14 +42,14 @@ uwlDb.each("SELECT mcc, mnc, lac, cellid FROM cells", function(err, uwlRow) {
           }
         });
       } else {
-        mlsDb.get('SELECT lat, lon, range FROM cells WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', {
+        ociDb.get('SELECT lat, lon, range FROM cells WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', {
           1: uwlRow.mcc,
           2: uwlRow.mnc,
           3: uwlRow.lac,
           4: uwlRow.cellid
         }, function(err, row) {
           if (err) {
-            console.error('Error querying Mozilla Location Service database');
+            console.error('Error querying OpenCellId database');
             return;
           }
 
@@ -124,8 +124,8 @@ uwlDb.each("SELECT mcc, mnc, lac, cellid FROM cells", function(err, uwlRow) {
 });
 
 process.on('exit', function() {
-  ociDb.close();
   mlsDb.close();
+  ociDb.close();
   glmDb.close();
   uwlDb.close();
   console.log(util.format('Processed entries: %d', numProcessedEntries));
