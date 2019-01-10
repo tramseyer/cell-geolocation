@@ -151,6 +151,22 @@ Find duplicate entries in Google GLM MMAP and OpenCellId cache database:
     echo "SELECT mcc, mnc, lac, cellid, count(*) as cell FROM cells GROUP BY mcc, mnc, lac, cellid HAVING count(*)> 1;" | sqlite3 uwl_cells.sqlite
     echo "SELECT mcc, mnc, lac, cellid, count(*) as cell FROM cells GROUP BY mcc, mnc, lac, cellid HAVING count(*)> 1;" | sqlite3 own_cells.sqlite
 
+## Scripts
+
+### Query Google GLM MMAP for e.g. MCC=206 MNC=1 LAC=3034 CELLID=65927425:
+
+    python3 queryGlmMmap.py 206 1 3034 65927425
+    51.183955|4.360369|1148
+
+### Update entire database with values from GLM MMAP using 1000 concurrent processes:
+
+    python3 cells-update.py glm_cells.sqlite 1000
+
+Remarks:
+* Please note that the cells-update.py script can involve millions of requests to the Google GLM MMAP online service if invoked for mls_cells.sqlite or oci_cells.sqlite and can be considered as practically harvesting data which is otherwise (via Google Geolocation API) paid for.
+* The cells-update.py script makes use of free elite proxies HTTP(S) servers to perform the requests in order to protect the machines public IP from being banned.
+* The optimal number of concurrent processes varies depending on the machine and its internet bandwidth.
+
 ## Resources
 
 OpenCellId and Mozilla Location Service [CSV Cell Fields](https://mozilla.github.io/ichnaea/import_export.html) definition.
