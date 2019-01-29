@@ -40,7 +40,7 @@ Remark: The OpenBmap / Radiocells.org offline database is not used, because it i
     cat oci_cells.csv.gz | gunzip - > oci_cells.csv
     cat schema.sql | sqlite3 oci_cells.sqlite
     cat oci_import.sql | sqlite3 oci_cells.sqlite
-    echo 'ATTACH DATABASE "mls_cells.sqlite" AS mls; DELETE FROM cells WHERE EXISTS (SELECT * FROM mls.cells mls WHERE mls.mcc = cells.mcc AND mls.mnc = cells.mnc AND mls.lac = cells.lac AND mls.cellid = cells.cellid); VACUUM;' | sqlite3 oci_cells.sqlite
+    cat oci_cells-cleanup.sql | sqlite3 oci_cells.sqlite
 
 ### Google GLM MMAP cache database
 
