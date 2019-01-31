@@ -9,7 +9,7 @@ def queryGlmMmap(mcc, mnc, lac, cellid):
     string = binascii.unhexlify(a + b + c + 'FFFFFFFF00000000')
 
     try:
-        response = requests.post('http://www.google.com/glm/mmap', string, timeout=1)
+        response = requests.post('http://www.google.com/glm/mmap', string, timeout=5)
         r = binascii.hexlify(response.content)
         if 0 == int(r[6:14],16):
             print('{0}|{1}|{2}'.format(float(int(r[14:22],16))/1000000, float(int(r[22:30],16))/1000000, int(r[30:38],16)))

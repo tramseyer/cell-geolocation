@@ -66,7 +66,7 @@ def queryGlmMmap(args):
     string = binascii.unhexlify(a + b + c + 'FFFFFFFF00000000')
 
     try:
-        response = requests.post('http://www.google.com/glm/mmap', string, proxies={'http': 'http://' + args[7]}, timeout=1)
+        response = requests.post('http://www.google.com/glm/mmap', string, proxies={'http': 'http://' + args[7]}, timeout=5)
         r = binascii.hexlify(response.content)
         if 0 == int(r[6:14],16):
             lat = float(int(r[14:22],16))/1000000
@@ -113,7 +113,7 @@ pendingRowsArgs = []
 
 while True:
     dbCursor.execute('SELECT mcc, mnc, lac, cellid, lat, lon, range FROM cells WHERE updated_at < {0}'.format(int(startTimeScript)))
-    rows = dbCursor.fetchmany(int((len(allProxies)/2)))
+    rows = dbCursor.fetchmany(int((len(allProxies)/8)))
     if rows:
         args = []
         for i, row in enumerate(rows):
@@ -170,8 +170,8 @@ if len(pendingRowsArgs):
     previousPendingRowsArgsLen = len(pendingRowsArgs) + 1
     while len(pendingRowsArgs) < previousPendingRowsArgsLen:
         previousPendingRowsArgsLen = len(pendingRowsArgs)
-        for pos in range(0, len(pendingRowsArgs), int((len(allProxies)/2))):
-            rows = pendingRowsArgs[pos:pos+int((len(allProxies)/2))]
+        for pos in range(0, len(pendingRowsArgs), int((len(allProxies)/8))):
+            rows = pendingRowsArgs[pos:pos+int((len(allProxies)/8))]
             args = []
             for i, row in enumerate(rows):
                 args.append((row[0], row[1], row[2], row[3], row[4], row[5], row[6], allProxies[i]))
