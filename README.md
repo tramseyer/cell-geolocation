@@ -159,13 +159,17 @@ Find duplicate entries in Google GLM MMAP and OpenCellId cache database:
     python3 queryGlmMmap.py 206 1 3034 65927425
     51.183955|4.360369|1148
 
-### Update entire database with values from GLM MMAP using 1000 concurrent processes:
+### Update entire database with values from GLM MMAP using 1000 concurrent processes while using direct connections:
 
     python3 cells-update.py glm_cells.sqlite 1000
 
+### Update entire database with values from GLM MMAP using 1000 concurrent processes while using proxied connections:
+
+    python3 cells-update.py glm_cells.sqlite 1000 prox
+
 Remarks:
 * Please note that the cells-update.py script can involve millions of requests to the Google GLM MMAP online service if invoked for mls_cells.sqlite or oci_cells.sqlite and can be considered as practically harvesting data which is otherwise (via Google Geolocation API) paid for.
-* The cells-update.py script makes use of free elite proxies HTTP(S) servers to perform the requests in order to protect the machines public IP from being banned.
+* The cells-update.py script can make use of free elite proxies HTTP(S) servers to perform the requests in order to protect the machines public IP from being banned.
 * The optimal number of concurrent processes varies depending on the machine and its internet bandwidth.
 
 ## Resources

@@ -66,7 +66,8 @@ def queryGlmMmap(args):
     string = binascii.unhexlify(a + b + c + 'FFFFFFFF00000000')
 
     try:
-        response = requests.post('http://www.google.com/glm/mmap', string, proxies={'http': 'http://' + args[7]}, timeout=5)
+        proxy = {'http': 'http://' + args[7]} if args[8] else {}
+        response = requests.post('http://www.google.com/glm/mmap', string, proxies=proxy, timeout=5)
         r = binascii.hexlify(response.content)
         if 0 == int(r[6:14],16):
             lat = float(int(r[14:22],16))/1000000
@@ -101,6 +102,11 @@ response = requests.get('https://www.proxy-list.download/api/v1/get?&type=https&
 httpsProxies = response.text.splitlines()
 allProxies = httpProxies + httpsProxies
 print('Fetched {0} HTTP and {1} HTTPS elite proxies'.format(len(httpProxies), len(httpsProxies)))
+useProxies = True if len(sys.argv) > 3 and 'prox' in sys.argv[3] else False
+if useProxies:
+    print('Using proxies for requests')
+else:
+    print('Not using proxies for requests')
 
 db = sqlite3.connect(sys.argv[1])
 dbCursor = db.cursor()
@@ -117,7 +123,7 @@ while True:
     if rows:
         args = []
         for i, row in enumerate(rows):
-            args.append((row[0], row[1], row[2], row[3], row[4], row[5], row[6], allProxies[i]))
+            args.append((row[0], row[1], row[2], row[3], row[4], row[5], row[6], allProxies[i], useProxies))
         results = pool.map(queryGlmMmap, args)
         movedProxiesCount = 0;
         for result in results:
@@ -131,14 +137,16 @@ while True:
                 db.cursor().execute('UPDATE cells SET updated_at = ? WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', (int(time.time()), args[0], args[1], args[2], args[3]))
             elif -1 == ret:
                 timeoutErrorCount += 1
-                movedProxiesCount += 1
-                allProxies.remove(args[7])
-                allProxies.append(args[7])
+                if useProxies:
+                    movedProxiesCount += 1
+                    allProxies.remove(args[7])
+                    allProxies.append(args[7])
             elif -2 == ret:
                 connectionErrorCount += 1
-                movedProxiesCount += 1
-                allProxies.remove(args[7])
-                allProxies.append(args[7])
+                if useProxies:
+                    movedProxiesCount += 1
+                    allProxies.remove(args[7])
+                    allProxies.append(args[7])
             elif -3 == ret:
                 coordinateErrorCount += 1
                 missCount += 1
@@ -174,7 +182,7 @@ if len(pendingRowsArgs):
             rows = pendingRowsArgs[pos:pos+int((len(allProxies)/8))]
             args = []
             for i, row in enumerate(rows):
-                args.append((row[0], row[1], row[2], row[3], row[4], row[5], row[6], allProxies[i]))
+                args.append((row[0], row[1], row[2], row[3], row[4], row[5], row[6], allProxies[i], useProxies))
             results = pool.map(queryGlmMmap, args)
             movedProxiesCount = 0;
             for result in results:
@@ -187,14 +195,16 @@ if len(pendingRowsArgs):
                     missCount += 1
                 elif -1 == ret:
                     timeoutErrorCount += 1
-                    movedProxiesCount += 1
-                    allProxies.remove(args[7])
-                    allProxies.append(args[7])
+                    if useProxies:
+                        movedProxiesCount += 1
+                        allProxies.remove(args[7])
+                        allProxies.append(args[7])
                 elif -2 == ret:
                     connectionErrorCount += 1
-                    movedProxiesCount += 1
-                    allProxies.remove(args[7])
-                    allProxies.append(args[7])
+                    if useProxies:
+                        movedProxiesCount += 1
+                        allProxies.remove(args[7])
+                        allProxies.append(args[7])
                 elif -3 == ret:
                     coordinateErrorCount += 1
                 elif -4 == ret:
@@ -205,4 +215,4 @@ if len(pendingRowsArgs):
     print('No hits for {0} entries'.format(len(pendingRowsArgs)))
 
 db.close()
-pool.close() 
+pool.close()
