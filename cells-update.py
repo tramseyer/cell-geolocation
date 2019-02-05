@@ -122,6 +122,7 @@ while True:
     dbCursor.execute('SELECT mcc, mnc, lac, cellid, lat, lon, range FROM cells WHERE updated_at < {0}'.format(int(startTime)))
     rows = dbCursor.fetchmany(int((len(allProxies)/8)) if useProxies else int(sys.argv[2]))
     if rows:
+        currentHitCount = 0
         currentMissCount = 0
         currentTimeoutErrorCount = 0
         currentConnectionErrorCount = 0
@@ -133,6 +134,7 @@ while True:
         for result in results:
             ret, args, lat, lon, rng = result
             if 0 == ret:
+                currentHitCount += 1
                 hitCount += 1
                 db.cursor().execute('UPDATE cells SET lat = ?, lon = ?, range = ?, updated_at = ? WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', (lat,lon, rng, int(time.time()), args[0], args[1], args[2], args[3]))
             elif 1 == ret:
@@ -165,7 +167,7 @@ while True:
         db.commit()
         if not useProxies and currentTimeoutErrorCount + currentConnectionErrorCount == len(rows): # connection error
             sleepTime += 1
-        if not useProxies and 0 == hitCount: # IP address banned by Google
+        if not useProxies and currentHitCount == 0: # IP address banned by Google
             sleepTime += 1
         elif useProxies and currentConnectionErrorCount >= (len(rows) / 2): # IP address banned by 50% of proxies or more
             sleepTime += 1
