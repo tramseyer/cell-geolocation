@@ -6,7 +6,6 @@ import sqlite3
 import sys
 import time
 
-startTimeScript = time.time()
 entryCount = 0
 hitCount = 0
 missCount = 0
@@ -14,6 +13,9 @@ timeoutErrorCount = 0
 connectionErrorCount = 0
 coordinateErrorCount = 0
 valueErrorCount = 0
+sleepTime = 0
+startTime = time.time()
+pendingRowsArgs = []
 
 # https://github.com/mapado/haversine
 from math import radians, cos, sin, asin, sqrt
@@ -74,10 +76,10 @@ def queryGlmMmap(args):
             lon = float(int(r[22:30],16))/1000000
             rng = int(r[30:38],16)
             if 90.0 < abs(lat):
-                print('Unrealistic lat:', lat, hex(lat))
+                #print('Unrealistic lat:', lat, hex(int(r[14:22],16)))
                 return -3, args, lat, lon, rng
             elif 180.0 < abs(lon):
-                print('Unrealistic lon:', lon, hex(lon))
+                #print('Unrealistic lon:', lon, hex(int(r[22:30],16)))
                 return -3, args, lat, lon, rng
             elif 1000000 < rng:
                 print('Unrealistic range:', rng)
@@ -94,36 +96,38 @@ def queryGlmMmap(args):
     except Exception as e:
         return -2, args, None, None, None
 
-pool = Pool(int(sys.argv[2]))
-
-response = requests.get('https://www.proxy-list.download/api/v1/get?&type=http&anon=elite', timeout=30)
-httpProxies = response.text.splitlines()
-response = requests.get('https://www.proxy-list.download/api/v1/get?&type=https&anon=elite', timeout=30)
-httpsProxies = response.text.splitlines()
-allProxies = httpProxies + httpsProxies
-print('Fetched {0} HTTP and {1} HTTPS elite proxies'.format(len(httpProxies), len(httpsProxies)))
-useProxies = True if len(sys.argv) > 3 and 'prox' in sys.argv[3] else False
-if useProxies:
-    print('Using proxies for requests')
-else:
-    print('Not using proxies for requests')
+def fetchProxies():
+    response = requests.get('https://www.proxy-list.download/api/v1/get?&type=http&anon=elite', timeout=30)
+    httpProxies = response.text.splitlines()
+    response = requests.get('https://www.proxy-list.download/api/v1/get?&type=https&anon=elite', timeout=30)
+    httpsProxies = response.text.splitlines()
+    print('Fetched {0} HTTP and {1} HTTPS elite proxies'.format(len(httpProxies), len(httpsProxies)))
+    return httpProxies + httpsProxies
 
 db = sqlite3.connect(sys.argv[1])
 dbCursor = db.cursor()
-dbCursor.execute('SELECT COUNT(*) FROM cells WHERE updated_at < {0}'.format(int(startTimeScript)))
+dbCursor.execute('SELECT COUNT(*) FROM cells WHERE updated_at < {0}'.format(int(startTime)))
 entriesCount = dbCursor.fetchone()[0]
 
-startTimeRequests = time.time()
+allProxies = fetchProxies()
+useProxies = True if len(sys.argv) > 3 and 'prox' in sys.argv[3] else False
+if useProxies:
+    print('Querying {0} entries while using proxies'.format(entriesCount))
+else:
+    print('Querying {0} entries while not using proxies'.format(entriesCount))
 
-pendingRowsArgs = []
+pool = Pool(int(sys.argv[2]))
 
 while True:
-    dbCursor.execute('SELECT mcc, mnc, lac, cellid, lat, lon, range FROM cells WHERE updated_at < {0}'.format(int(startTimeScript)))
-    rows = dbCursor.fetchmany(int((len(allProxies)/8)))
+    dbCursor.execute('SELECT mcc, mnc, lac, cellid, lat, lon, range FROM cells WHERE updated_at < {0}'.format(int(startTime)))
+    rows = dbCursor.fetchmany(int((len(allProxies)/8)) if useProxies else int(sys.argv[2]))
     if rows:
+        currentMissCount = 0
+        currentTimeoutErrorCount = 0
+        currentConnectionErrorCount = 0
         args = []
         for i, row in enumerate(rows):
-            args.append((row[0], row[1], row[2], row[3], row[4], row[5], row[6], allProxies[i], useProxies))
+            args.append((row[0], row[1], row[2], row[3], row[4], row[5], row[6], allProxies[i] if useProxies else None, useProxies))
         results = pool.map(queryGlmMmap, args)
         movedProxiesCount = 0;
         for result in results:
@@ -132,16 +136,19 @@ while True:
                 hitCount += 1
                 db.cursor().execute('UPDATE cells SET lat = ?, lon = ?, range = ?, updated_at = ? WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', (lat,lon, rng, int(time.time()), args[0], args[1], args[2], args[3]))
             elif 1 == ret:
+                currentMissCount += 1
                 missCount += 1
                 pendingRowsArgs.append(list(args[0:7]))
                 db.cursor().execute('UPDATE cells SET updated_at = ? WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', (int(time.time()), args[0], args[1], args[2], args[3]))
             elif -1 == ret:
+                currentTimeoutErrorCount += 1
                 timeoutErrorCount += 1
                 if useProxies:
                     movedProxiesCount += 1
                     allProxies.remove(args[7])
                     allProxies.append(args[7])
             elif -2 == ret:
+                currentConnectionErrorCount += 1
                 connectionErrorCount += 1
                 if useProxies:
                     movedProxiesCount += 1
@@ -158,31 +165,48 @@ while True:
                 pendingRowsArgs.append(list(args[0:7]))
                 db.cursor().execute('UPDATE cells SET updated_at = ? WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', (int(time.time()), args[0], args[1], args[2], args[3]))
         db.commit()
+        if not useProxies and currentTimeoutErrorCount + currentConnectionErrorCount == len(rows): # connection error
+            sleepTime += 1
+        if not useProxies and currentMissCount == len(rows): # IP address banned by Google
+            sleepTime += 1
+        elif useProxies and currentConnectionErrorCount >= (len(rows) / 2): # IP address banned by 50% of proxies or more
+            sleepTime += 1
+        elif sleepTime > 0:
+            sleepTime -= 1
         updatedCount = hitCount + missCount + coordinateErrorCount + valueErrorCount
         updatedPercentage = 100.0 / entriesCount * updatedCount
         hitPercentage = 100.0 / entriesCount * hitCount
         missPercentage = 100.0 / entriesCount * missCount
-        print('C:{0} U:{1}/{2:.2f}% H:{3:.2f}% M:{4:.2f}% E:{5},{6},{7},{8} P:{9} R:{10}/s'.format(entriesCount, updatedCount, updatedPercentage, hitPercentage, missPercentage, timeoutErrorCount, connectionErrorCount, coordinateErrorCount, valueErrorCount, movedProxiesCount, int(updatedCount / (time.time() - startTimeRequests))))
+        print('C:{0} U:{1}/{2:.2f}% H:{3}/{4:.2f}% M:{5}/{6:.2f}% E:{7},{8},{9},{10} P:{11} R:{12}/s S:{13}s'.format(entriesCount, updatedCount, updatedPercentage, hitCount, hitPercentage, missCount, missPercentage, timeoutErrorCount, connectionErrorCount, coordinateErrorCount, valueErrorCount, movedProxiesCount, int(updatedCount / (time.time() - startTime)), sleepTime))
+        if not useProxies and sleepTime >= 30: # constant connection error or IP address banned by Google
+            print('Switching to using proxies now')
+            useProxies = True
+            sleepTime = 0
+        else:
+            time.sleep(sleepTime)
     else:
         break
 
 if len(pendingRowsArgs):
-    retryEntriesCount = len(pendingRowsArgs)
-    hitCount = 0
-    missCount = 0
-    timeoutErrorCount = 0
-    connectionErrorCount = 0
-    coordinateErrorCount = 0
-    valueErrorCount = 0
-    print('Retrying {0} entries'.format(retryEntriesCount))
-    previousPendingRowsArgsLen = len(pendingRowsArgs) + 1
-    while len(pendingRowsArgs) < previousPendingRowsArgsLen:
-        previousPendingRowsArgsLen = len(pendingRowsArgs)
+    print('Retrying {0} entries using proxies now'.format(len(pendingRowsArgs)))
+    while True:
+        hitRowsArgs = []
+        hitCount = 0
+        missCount = 0
+        timeoutErrorCount = 0
+        connectionErrorCount = 0
+        coordinateErrorCount = 0
+        valueErrorCount = 0
+        sleepTime = 0
+        startTime = time.time()
+        allProxies = fetchProxies()
+        retryEntriesCount = len(pendingRowsArgs)
         for pos in range(0, len(pendingRowsArgs), int((len(allProxies)/8))):
             rows = pendingRowsArgs[pos:pos+int((len(allProxies)/8))]
+            currentConnectionErrorCount = 0
             args = []
             for i, row in enumerate(rows):
-                args.append((row[0], row[1], row[2], row[3], row[4], row[5], row[6], allProxies[i], useProxies))
+                args.append((row[0], row[1], row[2], row[3], row[4], row[5], row[6], allProxies[i], True))
             results = pool.map(queryGlmMmap, args)
             movedProxiesCount = 0;
             for result in results:
@@ -190,29 +214,43 @@ if len(pendingRowsArgs):
                 if 0 == ret:
                     hitCount += 1
                     db.cursor().execute('UPDATE cells SET lat = ?, lon = ?, range = ?, updated_at = ? WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', (lat,lon, rng, int(time.time()), args[0], args[1], args[2], args[3]))
-                    pendingRowsArgs.remove(list(args[0:7]))
+                    hitRowsArgs.append(list(args[0:7]))
                 elif 1 == ret:
+                    currentMissCount += 1
                     missCount += 1
                 elif -1 == ret:
                     timeoutErrorCount += 1
-                    if useProxies:
-                        movedProxiesCount += 1
-                        allProxies.remove(args[7])
-                        allProxies.append(args[7])
+                    movedProxiesCount += 1
+                    allProxies.remove(args[7])
+                    allProxies.append(args[7])
                 elif -2 == ret:
+                    currentConnectionErrorCount += 1
                     connectionErrorCount += 1
-                    if useProxies:
-                        movedProxiesCount += 1
-                        allProxies.remove(args[7])
-                        allProxies.append(args[7])
+                    movedProxiesCount += 1
+                    allProxies.remove(args[7])
+                    allProxies.append(args[7])
                 elif -3 == ret:
                     coordinateErrorCount += 1
                 elif -4 == ret:
                     valueErrorCount += 1
             db.commit()
+            if currentConnectionErrorCount >= (len(rows) / 2): # IP address banned by 50% of proxies or more
+                sleepTime += 1
+            elif sleepTime > 0:
+                sleepTime -= 1
+            updatedCount = hitCount + missCount + timeoutErrorCount + connectionErrorCount + coordinateErrorCount + valueErrorCount
+            updatedPercentage = 100.0 / retryEntriesCount * updatedCount
             hitPercentage = 100.0 / retryEntriesCount * hitCount
-            print('R:{0} H:{1}/{2:.2f}% E:{3},{4},{5},{6} P:{7} R:{8}/s'.format(retryEntriesCount, hitCount, hitPercentage, timeoutErrorCount, connectionErrorCount, coordinateErrorCount, valueErrorCount, movedProxiesCount, int(updatedCount / (time.time() - startTimeRequests))))
-    print('No hits for {0} entries'.format(len(pendingRowsArgs)))
+            missPercentage = 100.0 / retryEntriesCount * missCount
+            print('R:{0} U:{1}/{2:.2f}% H:{3}/{4:.2f}% M:{5}/{6:.2f}% E:{7},{8},{9},{10} P:{11} R:{12}/s S:{13}s'.format(retryEntriesCount, updatedCount, updatedPercentage, hitCount, hitPercentage, missCount, missPercentage, timeoutErrorCount, connectionErrorCount, coordinateErrorCount, valueErrorCount, movedProxiesCount, int(updatedCount / (time.time() - startTime)), sleepTime))
+            time.sleep(sleepTime)
+        if hitRowsArgs:
+            for rowArgs in hitRowsArgs:
+                pendingRowsArgs.remove(rowArgs)
+        if hitPercentage < 0.1:
+            print('Hit rate dopped below one per-mille ({0}%)'.format(hitPercentage))
+            print('No hits for {0} entries'.format(retryEntriesCount))
+            break
 
 db.close()
 pool.close()
