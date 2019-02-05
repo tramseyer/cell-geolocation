@@ -156,29 +156,27 @@ while True:
                     allProxies.append(args[7])
             elif -3 == ret:
                 coordinateErrorCount += 1
-                missCount += 1
                 pendingRowsArgs.append(list(args[0:7]))
                 db.cursor().execute('UPDATE cells SET updated_at = ? WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', (int(time.time()), args[0], args[1], args[2], args[3]))
             elif -4 == ret:
                 valueErrorCount += 1
-                missCount += 1
                 pendingRowsArgs.append(list(args[0:7]))
                 db.cursor().execute('UPDATE cells SET updated_at = ? WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', (int(time.time()), args[0], args[1], args[2], args[3]))
         db.commit()
         if not useProxies and currentTimeoutErrorCount + currentConnectionErrorCount == len(rows): # connection error
             sleepTime += 1
-        if not useProxies and currentMissCount == len(rows): # IP address banned by Google
+        if not useProxies and 0 == hitCount: # IP address banned by Google
             sleepTime += 1
         elif useProxies and currentConnectionErrorCount >= (len(rows) / 2): # IP address banned by 50% of proxies or more
             sleepTime += 1
         elif sleepTime > 0:
             sleepTime -= 1
-        updatedCount = hitCount + missCount + coordinateErrorCount + valueErrorCount
+        updatedCount = hitCount + missCount + coordinateErrorCount + valueErrorCount # considered as updated when updated_at was set
         updatedPercentage = 100.0 / entriesCount * updatedCount
         hitPercentage = 100.0 / entriesCount * hitCount
         missPercentage = 100.0 / entriesCount * missCount
         print('C:{0} U:{1}/{2:.2f}% H:{3}/{4:.2f}% M:{5}/{6:.2f}% E:{7},{8},{9},{10} P:{11} R:{12}/s S:{13}s'.format(entriesCount, updatedCount, updatedPercentage, hitCount, hitPercentage, missCount, missPercentage, timeoutErrorCount, connectionErrorCount, coordinateErrorCount, valueErrorCount, movedProxiesCount, int(updatedCount / (time.time() - startTime)), sleepTime))
-        if not useProxies and sleepTime >= 30: # constant connection error or IP address banned by Google
+        if not useProxies and sleepTime >= 60: # constant connection error or IP address banned by Google
             print('Switching to using proxies now')
             useProxies = True
             sleepTime = 0
