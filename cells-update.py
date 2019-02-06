@@ -114,9 +114,13 @@ def getCountryName(mcc):
         if int(entry['mcc']) == mcc:
             return entry['country']
 
+sqlFilter = ' AND ' + sys.argv[4] if len(sys.argv) > 4 else None
+if sqlFilter:
+    print('Using SQL filter:{0}'.format(sqlFilter))
+
 db = sqlite3.connect(sys.argv[1])
 dbCursor = db.cursor()
-dbCursor.execute('SELECT COUNT(*) FROM cells WHERE updated_at < {0}'.format(int(startTime)))
+dbCursor.execute('SELECT COUNT(*) FROM cells WHERE updated_at < {0}{1}'.format(int(startTime), sqlFilter if sqlFilter else ''))
 entriesCount = dbCursor.fetchone()[0]
 
 allProxies = fetchProxies()
@@ -129,7 +133,7 @@ else:
 pool = Pool(int(sys.argv[2]))
 
 while True:
-    dbCursor.execute('SELECT mcc, mnc, lac, cellid, lat, lon, range FROM cells WHERE updated_at < {0}'.format(int(startTime)))
+    dbCursor.execute('SELECT mcc, mnc, lac, cellid, lat, lon, range FROM cells WHERE updated_at < {0}{1}'.format(int(startTime), sqlFilter if sqlFilter else ''))
     rows = dbCursor.fetchmany(int((len(allProxies)/8)) if useProxies else int(sys.argv[2]))
     if rows:
         currentMissCount = 0
