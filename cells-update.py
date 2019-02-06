@@ -1,5 +1,7 @@
+from collections import Counter
 from multiprocessing import Pool
 import binascii
+import json
 import os
 import requests
 import sqlite3
@@ -105,6 +107,13 @@ def fetchProxies():
     print('Fetched {0} HTTP and {1} HTTPS elite proxies'.format(len(httpProxies), len(httpsProxies)))
     return httpProxies + httpsProxies
 
+response = requests.get('https://raw.githubusercontent.com/musalbas/mcc-mnc-table/master/mcc-mnc-table.json', timeout=30)
+mccTable = json.loads(response.text)
+def getCountryName(mcc):
+    for entry in mccTable:
+        if int(entry['mcc']) == mcc:
+            return entry['country']
+
 db = sqlite3.connect(sys.argv[1])
 dbCursor = db.cursor()
 dbCursor.execute('SELECT COUNT(*) FROM cells WHERE updated_at < {0}'.format(int(startTime)))
@@ -130,9 +139,11 @@ while True:
         for i, row in enumerate(rows):
             args.append((row[0], row[1], row[2], row[3], row[4], row[5], row[6], allProxies[i] if useProxies else None, useProxies))
         results = pool.map(queryGlmMmap, args)
+        mccs = []
         movedProxiesCount = 0;
         for result in results:
             ret, args, lat, lon, rng = result
+            mccs.append(args[0])
             if 0 == ret:
                 hitCount += 1
                 db.cursor().execute('UPDATE cells SET lat = ?, lon = ?, range = ?, updated_at = ? WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', (lat, lon, rng, int(time.time()), args[0], args[1], args[2], args[3]))
@@ -180,7 +191,7 @@ while True:
         updatedPercentage = 100.0 / entriesCount * updatedCount
         hitPercentage = 100.0 / entriesCount * hitCount
         missPercentage = 100.0 / entriesCount * missCount
-        print('C:{0} U:{1}/{2:.2f}% H:{3}/{4:.2f}% M:{5}/{6:.2f}% E:{7},{8},{9},{10} P:{11} R:{12}/s S:{13}s'.format(entriesCount, updatedCount, updatedPercentage, hitCount, hitPercentage, missCount, missPercentage, timeoutErrorCount, connectionErrorCount, coordinateErrorCount, valueErrorCount, movedProxiesCount, int(updatedCount / (time.time() - startTime)), sleepTime))
+        print('{0}({1}/{2:.0f}%) C:{3} U:{4}/{5:.2f}% H:{6}/{7:.2f}% M:{8}/{9:.2f}% E:{10},{11},{12},{13} P:{14} R:{15}/s S:{16}s'.format(getCountryName(Counter(mccs).most_common(1)[0][0]), Counter(mccs).most_common(1)[0][0], 100.0 / len(rows) * Counter(mccs).most_common(1)[0][1], entriesCount, updatedCount, updatedPercentage, hitCount, hitPercentage, missCount, missPercentage, timeoutErrorCount, connectionErrorCount, coordinateErrorCount, valueErrorCount, movedProxiesCount, int(updatedCount / (time.time() - startTime)), sleepTime))
         if not useProxies and sleepTime >= 60: # constant connection error or IP address banned by Google
             print('Switching to using proxies now')
             useProxies = True
@@ -211,9 +222,11 @@ if len(pendingRowsArgs):
             for i, row in enumerate(rows):
                 args.append((row[0], row[1], row[2], row[3], row[4], row[5], row[6], allProxies[i], True))
             results = pool.map(queryGlmMmap, args)
+            mccs = []
             movedProxiesCount = 0;
             for result in results:
                 ret, args, lat, lon, rng = result
+                mccs.append(args[0])
                 if 0 == ret:
                     hitCount += 1
                     db.cursor().execute('UPDATE cells SET lat = ?, lon = ?, range = ?, updated_at = ? WHERE mcc = ? AND mnc = ? AND lac = ? AND cellid = ?', (lat,lon, rng, int(time.time()), args[0], args[1], args[2], args[3]))
@@ -245,7 +258,7 @@ if len(pendingRowsArgs):
             updatedPercentage = 100.0 / retryEntriesCount * updatedCount
             hitPercentage = 100.0 / retryEntriesCount * hitCount
             missPercentage = 100.0 / retryEntriesCount * missCount
-            print('R:{0} U:{1}/{2:.2f}% H:{3}/{4:.2f}% M:{5}/{6:.2f}% E:{7},{8},{9},{10} P:{11} R:{12}/s S:{13}s'.format(retryEntriesCount, updatedCount, updatedPercentage, hitCount, hitPercentage, missCount, missPercentage, timeoutErrorCount, connectionErrorCount, coordinateErrorCount, valueErrorCount, movedProxiesCount, int(updatedCount / (time.time() - startTime)), sleepTime))
+            print('{0}({1}/{2:.0f}%) R:{3} U:{4}/{5:.2f}% H:{6}/{7:.2f}% M:{8}/{9:.2f}% E:{10},{11},{12},{13} P:{14} R:{15}/s S:{16}s'.format(getCountryName(Counter(mccs).most_common(1)[0][0]), Counter(mccs).most_common(1)[0][0], 100.0 / len(rows) * Counter(mccs).most_common(1)[0][1], retryEntriesCount, updatedCount, updatedPercentage, hitCount, hitPercentage, missCount, missPercentage, timeoutErrorCount, connectionErrorCount, coordinateErrorCount, valueErrorCount, movedProxiesCount, int(updatedCount / (time.time() - startTime)), sleepTime))
             time.sleep(sleepTime)
         if hitRowsArgs:
             for rowArgs in hitRowsArgs:
