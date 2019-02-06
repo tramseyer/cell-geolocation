@@ -1,5 +1,6 @@
 import binascii
 import requests
+import struct
 import sys
 
 def queryGlmMmap(mcc, mnc, lac, cellid):
@@ -10,9 +11,14 @@ def queryGlmMmap(mcc, mnc, lac, cellid):
 
     try:
         response = requests.post('http://www.google.com/glm/mmap', string, timeout=5)
-        r = binascii.hexlify(response.content)
-        if 0 == int(r[6:14],16):
-            print('{0}|{1}|{2}'.format(float(int(r[14:22],16))/1000000, float(int(r[22:30],16))/1000000, int(r[30:38],16)))
+        if 25 == len(response.content):
+            (a, b, errorCode, lat, lon, rng, c, d) = struct.unpack(">hBiiiiih", response.content)
+            lat = lat / 1000000.0
+            lon = lon / 1000000.0
+            if 0 == errorCode:
+                print('{0}|{1}|{2}'.format(lat, lon, rng))
+            else:
+                print('Error:', errorCode)
         else:
             print('No match')
     except Exception as e:

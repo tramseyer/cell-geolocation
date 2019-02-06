@@ -5,6 +5,7 @@ import json
 import os
 import requests
 import sqlite3
+import struct
 import sys
 import time
 
@@ -73,30 +74,34 @@ def queryGlmMmap(args):
     try:
         proxy = {'http': 'http://' + args[7]} if args[8] else {}
         response = requests.post('http://www.google.com/glm/mmap', string, proxies=proxy, timeout=10 if args[8] else 5)
-        r = binascii.hexlify(response.content)
-        if 0 == int(r[6:14],16):
-            lat = float(int(r[14:22],16))/1000000
-            lon = float(int(r[22:30],16))/1000000
-            rng = int(r[30:38],16)
-            if 90.0 < abs(lat):
-                #print('Unrealistic lat:', lat, hex(int(r[14:22],16)))
-                return -3, args, lat, lon, rng
-            elif 180.0 < abs(lon):
-                #print('Unrealistic lon:', lon, hex(int(r[22:30],16)))
-                return -3, args, lat, lon, rng
-            elif 1000000 < rng:
-                print('Unrealistic range:', rng)
-                return -4, args, lat, lon, rng
-            elif 20037.5 < haversine((args[4], args[5]), (lat, lon)):
-                print('Unrealistic distance:', haversine((args[4], args[5]), (lat, lon)))
-                return -4, args, lat, lon, rng
+        if 25 == len(response.content):
+            (a, b, errorCode, lat, lon, rng, c, d) = struct.unpack(">hBiiiiih", response.content)
+            lat = lat / 1000000.0
+            lon = lon / 1000000.0
+            if 0 == errorCode:
+                if 90.0 < abs(lat):
+                    print('Unrealistic lat:', lat)
+                    return -3, args, None, None, None
+                elif 180.0 < abs(lon):
+                    print('Unrealistic lon:', lon)
+                    return -3, args, None, None, None
+                elif 1000000 < rng:
+                    print('Unrealistic range:', rng)
+                    return -4, args, None, None, None
+                elif 20037.5 < haversine((args[4], args[5]), (lat, lon)):
+                    print('Unrealistic distance:', haversine((args[4], args[5]), (lat, lon)))
+                    return -4, args, None, None, None
+                else:
+                    return 0, args, lat, lon, rng
             else:
-                return 0, args, lat, lon, rng
+                return 1, args, None, None, None
         else:
             return 1, args, None, None, None
     except requests.Timeout as e:
         return -1, args, None, None, None
-    except Exception as e:
+    except struct.error as e:
+        return -4, args, None, None, None
+    except Exception as e:  
         return -2, args, None, None, None
 
 def fetchProxies():
