@@ -101,7 +101,7 @@ def queryGlmMmap(args):
         return -1, args, None, None, None
     except struct.error as e:
         return -4, args, None, None, None
-    except Exception as e:  
+    except Exception as e:
         return -2, args, None, None, None
 
 def fetchProxies():
