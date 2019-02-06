@@ -274,7 +274,7 @@ if len(pendingRowsArgs):
                 pendingRowsArgs.remove(rowArgs)
         if hitPercentage < 0.1:
             print('Hit rate dopped below one per-mille ({0}%)'.format(hitPercentage))
-            print('No hits for {0} entries'.format(retryEntriesCount))
+            print('No hits for {0} entries'.format(retryEntriesCount - hitCount))
             break
 
 db.close()
