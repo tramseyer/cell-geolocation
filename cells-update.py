@@ -200,7 +200,7 @@ while True:
         updatedPercentage = 100.0 / entriesCount * updatedCount
         hitPercentage = 100.0 / entriesCount * hitCount
         missPercentage = 100.0 / entriesCount * missCount
-        print('{0}({1}/{2:.0f}%) C:{3} U:{4}/{5:.2f}% H:{6}/{7:.2f}% M:{8}/{9:.2f}% E:{10},{11},{12},{13} P:{14} R:{15}/s S:{16}s'.format(getCountryName(Counter(mccs).most_common(1)[0][0]), Counter(mccs).most_common(1)[0][0], 100.0 / len(rows) * Counter(mccs).most_common(1)[0][1], entriesCount, updatedCount, updatedPercentage, hitCount, hitPercentage, missCount, missPercentage, timeoutErrorCount, connectionErrorCount, coordinateErrorCount, valueErrorCount, movedProxiesCount, int(updatedCount / (time.time() - startTime)), sleepTime))
+        print('C:{0} U:{1}/{2:.2f}% H:{3}/{4:.2f}% M:{5}/{6:.2f}% E:{7},{8},{9},{10} P:{11} R:{12}/s S:{13}s {14}({15}/{16:.0f}%)'.format(entriesCount, updatedCount, updatedPercentage, hitCount, hitPercentage, missCount, missPercentage, timeoutErrorCount, connectionErrorCount, coordinateErrorCount, valueErrorCount, movedProxiesCount, int(updatedCount / (time.time() - startTime)), sleepTime, getCountryName(Counter(mccs).most_common(1)[0][0]), Counter(mccs).most_common(1)[0][0], 100.0 / len(rows) * Counter(mccs).most_common(1)[0][1]))
         if not useProxies and sleepTime >= 60: # constant connection error or IP address banned by Google
             print('Switching to using proxies now')
             useProxies = True
@@ -267,7 +267,7 @@ if len(pendingRowsArgs):
             updatedPercentage = 100.0 / retryEntriesCount * updatedCount
             hitPercentage = 100.0 / retryEntriesCount * hitCount
             missPercentage = 100.0 / retryEntriesCount * missCount
-            print('{0}({1}/{2:.0f}%) R:{3} U:{4}/{5:.2f}% H:{6}/{7:.2f}% M:{8}/{9:.2f}% E:{10},{11},{12},{13} P:{14} R:{15}/s S:{16}s'.format(getCountryName(Counter(mccs).most_common(1)[0][0]), Counter(mccs).most_common(1)[0][0], 100.0 / len(rows) * Counter(mccs).most_common(1)[0][1], retryEntriesCount, updatedCount, updatedPercentage, hitCount, hitPercentage, missCount, missPercentage, timeoutErrorCount, connectionErrorCount, coordinateErrorCount, valueErrorCount, movedProxiesCount, int(updatedCount / (time.time() - startTime)), sleepTime))
+            print('R:{0} U:{1}/{2:.2f}% H:{3}/{4:.2f}% M:{5}/{6:.2f}% E:{7},{8},{9},{10} P:{11} R:{12}/s S:{13}s {14}({15}/{16:.0f}%)'.format(retryEntriesCount, updatedCount, updatedPercentage, hitCount, hitPercentage, missCount, missPercentage, timeoutErrorCount, connectionErrorCount, coordinateErrorCount, valueErrorCount, movedProxiesCount, int(updatedCount / (time.time() - startTime)), sleepTime, getCountryName(Counter(mccs).most_common(1)[0][0]), Counter(mccs).most_common(1)[0][0], 100.0 / len(rows) * Counter(mccs).most_common(1)[0][1]))
             time.sleep(sleepTime)
         if hitRowsArgs:
             for rowArgs in hitRowsArgs:
