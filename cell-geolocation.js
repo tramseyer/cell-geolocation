@@ -60,6 +60,8 @@ var numUnknownCells = 0;
 
 http.createServer(function(req, res) {
   const url = Url.parse(req.url, true);
+  const forwarded = req.headers['x-forwarded-for']
+  const ip = forwarded ? forwarded.split(/, /)[0] : req.connection.remoteAddress
 
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
@@ -172,7 +174,7 @@ http.createServer(function(req, res) {
                             console.log(util.format('Req#%d M#%d O#%d G#%d U#%d Own#%d/%d A#%d D#%d: Queried Google GLM MMAP for %s: %s, %s, %s, %s -> %s, %s, %s',
                                         numValidRequests, numMozillaResponses, numOpenCellIdResponses, numGoogleResponses, numUnwiredLabsResponses,
                                         numApproximatedResponses, numDefaultResponses, numApproximatedCells, numUnknownCells,
-                                        req.connection.remoteAddress,
+                                        ip,
                                         url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid,
                                         coords.lat, coords.lon, coords.range));
                             numGoogleResponses++;
@@ -204,7 +206,7 @@ http.createServer(function(req, res) {
                                 console.log(util.format('Req#%d M#%d O#%d G#%d U#%d Own#%d/%d A#%d D#%d: Queried OpenCellId for %s: %s, %s, %s, %s -> %s, %s, %s',
                                             numValidRequests, numMozillaResponses, numOpenCellIdResponses, numGoogleResponses, numUnwiredLabsResponses,
                                             numApproximatedResponses, numDefaultResponses, numApproximatedCells, numUnknownCells,
-                                            req.connection.remoteAddress,
+                                            ip,
                                             url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid,
                                             coords.lat, coords.lon, coords.range));
                                 numUnwiredLabsResponses++;
@@ -247,7 +249,7 @@ http.createServer(function(req, res) {
                                     console.log(util.format('Req#%d M#%d O#%d G#%d U#%d Own#%d/%d A#%d D#%d: Replying with approximated location to %s due to %d: %s, %s, %s, %s -> %s, %s, %s',
                                                 numValidRequests, numMozillaResponses, numOpenCellIdResponses, numGoogleResponses, numUnwiredLabsResponses,
                                                 numApproximatedResponses, numDefaultResponses, numApproximatedCells, numUnknownCells,
-                                                req.connection.remoteAddress, coords.statusCode,
+                                                ip, coords.statusCode,
                                                 url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid,
                                                            row.lat,row.lon,approximatedRange));
                                     numApproximatedResponses++;
@@ -278,7 +280,7 @@ http.createServer(function(req, res) {
                                     console.log(util.format('Req#%d M#%d O#%d G#%d U#%d Own#%d/%d A#%d D#%d: Replying with default location to %s due to %d: %s, %s, %s, %s',
                                                 numValidRequests, numMozillaResponses, numOpenCellIdResponses, numGoogleResponses, numUnwiredLabsResponses,
                                                 numApproximatedResponses, numDefaultResponses, numApproximatedCells, numUnknownCells,
-                                                req.connection.remoteAddress, coords.statusCode,
+                                                ip, coords.statusCode,
                                                 url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid));
                                     numDefaultResponses++;
                                     res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -319,7 +321,7 @@ http.createServer(function(req, res) {
                                     console.log(util.format('Req#%d M#%d O#%d G#%d U#%d Own#%d/%d A#%d D#%d: Replying with approximated location to %s due to %d: %s, %s, %s, %s -> %s, %s, %s',
                                                 numValidRequests, numMozillaResponses, numOpenCellIdResponses, numGoogleResponses, numUnwiredLabsResponses,
                                                 numApproximatedResponses, numDefaultResponses, numApproximatedCells, numUnknownCells,
-                                                req.connection.remoteAddress, coords.statusCode,
+                                                ip, coords.statusCode,
                                                 url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid,
                                                 row.lat, row.lon, approximatedRange));
                                     numApproximatedResponses++;
@@ -348,7 +350,7 @@ http.createServer(function(req, res) {
                                     console.log(util.format('Req#%d M#%d O#%d G#%d U#%d Own#%d/%d A#%d D#%d: Replying with default location to %s due to %d: %s, %s, %s, %s',
                                                 numValidRequests, numMozillaResponses, numOpenCellIdResponses, numGoogleResponses, numUnwiredLabsResponses,
                                                 numApproximatedResponses, numDefaultResponses, numApproximatedCells, numUnknownCells,
-                                                req.connection.remoteAddress, coords.statusCode,
+                                                ip, coords.statusCode,
                                                 url.query.mcc, url.query.mnc, url.query.lac, url.query.cellid));
                                     numDefaultResponses++;
                                     res.writeHead(404, { 'Content-Type': 'application/json' });
