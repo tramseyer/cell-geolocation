@@ -1,7 +1,6 @@
 const sqlite3 = require('sqlite3');
 const path = require('path');
 const util = require('util');
-const request = require(path.join(__dirname,'./request.js'));
 const mlsDb = new sqlite3.Database(path.join(__dirname, 'mls_cells.sqlite'), sqlite3.OPEN_READONLY);
 const ociDb = new sqlite3.Database(path.join(__dirname, 'oci_cells.sqlite'), sqlite3.OPEN_READONLY);
 const uwlDb = new sqlite3.Database(path.join(__dirname, 'uwl_cells.sqlite'), sqlite3.OPEN_READWRITE);
@@ -74,9 +73,24 @@ uwlDb.each("SELECT mcc, mnc, lac, cellid FROM cells", function(err, uwlRow) {
   }
 });
 
-process.on('exit', function() {
+process.on('SIGHUP', shutdown);
+process.on('SIGINT', shutdown);
+process.on('SIGQUIT', shutdown);
+process.on('SIGTERM', shutdown);
+process.on('SIGTSTP', shutdown);
+function shutdown() {
+  mlsDb.close();
+  ociDb.close();
+  uwlDb.close();
+  console.log("");
+  console.log("Closed databases and exiting now")
+  process.exit(0);
+}
+
+process.on('beforeExit', function() {
   mlsDb.close();
   ociDb.close();
   uwlDb.close();
   console.log(util.format('Processed entries: %d', numProcessedEntries));
+  process.exit(0);
 });

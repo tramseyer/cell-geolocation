@@ -357,11 +357,19 @@ http.createServer(function(req, res) {
 
 }).listen(process.env.PORT || 5265, process.env.IP || '0.0.0.0');
 
-process.on('exit', function() {
+process.on('SIGHUP', shutdown);
+process.on('SIGINT', shutdown);
+process.on('SIGQUIT', shutdown);
+process.on('SIGTERM', shutdown);
+process.on('SIGTSTP', shutdown);
+function shutdown() {
   mlsDb.close();
   ociDb.close();
   uwlDb.close();
   ownDb.close();
-});
+  console.log("");
+  console.log("Closed databases and exiting now");
+  process.exit(0)
+}
 
 console.log('Running at port:', process.env.PORT || 5265);
